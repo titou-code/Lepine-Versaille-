@@ -1,0 +1,154 @@
+const { Router } = require('express')
+const bcrypt = require('bcryptjs')
+const pool = require('../db')
+const { authenticate, requireRole, peutGererUtilisateur, ROLE_HIERARCHY } = require('../middleware/auth')
+const { logAudit } = require('../audit')
+
+const router = Router()
+
+router.get('/users', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, email, nom, prenom, role, actif, created_at FROM users WHERE deleted_at IS NULL ORDER BY nom'
+    )
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/users', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { email, password, nom, prenom, role } = req.body
+    if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' })
+    const targetRole = role || 'consultation'
+    if (!peutGererUtilisateur(req.user, { role: targetRole })) {
+      return res.status(403).json({ error: 'Vous ne pouvez pas créer un utilisateur avec ce rôle' })
+    }
+    const hash = await bcrypt.hash(password, 10)
+    const { rows } = await pool.query(
+      'INSERT INTO users (email, password_hash, nom, prenom, role) VALUES ($1,$2,$3,$4,$5) RETURNING id, email, nom, prenom, role, actif',
+      [email, hash, nom || '', prenom || '', targetRole]
+    )
+    await logAudit(req.user.id, 'gestion_utilisateur', 'users', rows[0].id, { action: 'creation', email, role: targetRole })
+    res.status(201).json(rows[0])
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé' })
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.patch('/users/:id', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { rows: targetRows } = await pool.query('SELECT id, role FROM users WHERE id = $1', [id])
+    if (targetRows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    const targetUser = targetRows[0]
+    if (!peutGererUtilisateur(req.user, targetUser)) {
+      return res.status(403).json({ error: 'Action non autorisée sur cet utilisateur' })
+    }
+    if (req.body.role && !peutGererUtilisateur(req.user, { role: req.body.role })) {
+      return res.status(403).json({ error: 'Vous ne pouvez pas attribuer ce rôle' })
+    }
+    const fields = []
+    const values = []
+    let idx = 1
+    for (const [key, val] of Object.entries(req.body)) {
+      if (['nom', 'prenom', 'role', 'actif'].includes(key)) {
+        fields.push(`${key} = $${idx++}`)
+        values.push(val)
+      }
+      if (key === 'password' && val) {
+        fields.push(`password_hash = $${idx++}`)
+        values.push(await bcrypt.hash(val, 10))
+      }
+    }
+    if (fields.length === 0) return res.status(400).json({ error: 'Rien à modifier' })
+    values.push(id)
+    await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}`, values)
+    await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'modification', ...req.body })
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/users/:id/delete', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { rows: targetRows } = await pool.query('SELECT id, role FROM users WHERE id = $1', [id])
+    if (targetRows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    if (!peutGererUtilisateur(req.user, targetRows[0])) {
+      return res.status(403).json({ error: 'Action non autorisée sur cet utilisateur' })
+    }
+    await pool.query('UPDATE users SET actif = false, deleted_at = NOW() WHERE id = $1', [id])
+    await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'suppression' })
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/supprimes-recemment', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { rows: salles } = await pool.query('SELECT id, nom, deleted_at FROM salles WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')
+    const { rows: etageres } = await pool.query('SELECT e.id, e.nom, e.deleted_at, s.nom AS salle_nom FROM etageres e LEFT JOIN salles s ON e.salle_id = s.id WHERE e.deleted_at IS NOT NULL ORDER BY e.deleted_at DESC')
+    const { rows: users } = await pool.query('SELECT id, email, nom, prenom, role, deleted_at FROM users WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')
+    res.json({ salles, etageres, users })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/restaurer', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { type, id } = req.body
+    const table = { salles: 'salles', etageres: 'etageres', users: 'users' }[type]
+    if (!table) return res.status(400).json({ error: 'Type invalide' })
+    await pool.query(`UPDATE ${table} SET actif = true, deleted_at = NULL WHERE id = $1`, [id])
+    await logAudit(req.user.id, 'restauration', table, id)
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/audit', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const conditions = []
+    const values = []
+    let idx = 1
+    if (req.query.user_id) { conditions.push(`a.user_id = $${idx++}`); values.push(req.query.user_id) }
+    if (req.query.action) { conditions.push(`a.action = $${idx++}`); values.push(req.query.action) }
+    if (req.query.from) { conditions.push(`a.created_at >= $${idx++}`); values.push(req.query.from) }
+    if (req.query.to) { conditions.push(`a.created_at <= $${idx++}`); values.push(req.query.to) }
+
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : ''
+    const { rows } = await pool.query(
+      `SELECT a.*, u.nom, u.prenom, u.email FROM audit_log a LEFT JOIN users u ON a.user_id = u.id ${where} ORDER BY a.created_at DESC LIMIT 200`,
+      values
+    )
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/documents-detruits', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT d.*, dest.date_destruction, dest.methode, dest.notes AS dest_notes,
+              u.nom AS destructeur_nom, u.prenom AS destructeur_prenom
+       FROM v_documents_complets d
+       JOIN destructions dest ON dest.document_id = d.id
+       LEFT JOIN users u ON dest.effectue_par = u.id
+       WHERE d.detruit = true
+       ORDER BY dest.date_destruction DESC`
+    )
+    res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+module.exports = router
