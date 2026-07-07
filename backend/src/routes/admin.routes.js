@@ -66,7 +66,8 @@ router.patch('/users/:id', authenticate, requireRole(['super_admin', 'admin']), 
     if (fields.length === 0) return res.status(400).json({ error: 'Rien à modifier' })
     values.push(id)
     await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}`, values)
-    await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'modification', ...req.body })
+    const { password, ...safeBody } = req.body
+    await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'modification', ...safeBody })
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
