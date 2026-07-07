@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Download, Search, ArrowUpDown, Pencil, AlertTriangle, Plus } from 'lucide-react'
 import { useDocuments } from '../hooks/useDocuments'
 import { useSalles } from '../hooks/useSalles'
@@ -29,7 +29,7 @@ function EditDocModal({ doc, open, onClose, onSaved, salles, categories }) {
   const [confirmCarton, setConfirmCarton] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  useState(() => {
+  useEffect(() => {
     if (doc) {
       setForm({
         ...doc,
@@ -171,7 +171,7 @@ function AddDocToCartonModal({ carton, open, onClose, onSaved, categories }) {
   const [form, setForm] = useState(null)
   const [saving, setSaving] = useState(false)
 
-  useState(() => {
+  useEffect(() => {
     if (carton) {
       setForm({
         theme: '', categorie_cnil_id: '', description: '', annee_document: '',
