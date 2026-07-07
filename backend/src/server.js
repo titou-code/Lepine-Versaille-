@@ -1,6 +1,12 @@
 const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
+
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-production') {
+  console.error('FATAL: JWT_SECRET absent ou valeur par défaut — arrêt du backend')
+  process.exit(1)
+}
+
 const pool = require('./db')
 
 const authRoutes = require('./routes/auth.routes')
@@ -40,9 +46,15 @@ app.get('/api/health', async (req, res) => {
 async function purgeSupprimes() {
   try {
     const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)
-    await pool.query('DELETE FROM salles WHERE deleted_at IS NOT NULL AND deleted_at < $1', [cutoff])
     await pool.query('DELETE FROM etageres WHERE deleted_at IS NOT NULL AND deleted_at < $1', [cutoff])
-    await pool.query('DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < $1', [cutoff])
+    await pool.query('DELETE FROM salles WHERE deleted_at IS NOT NULL AND deleted_at < $1', [cutoff])
+    await pool.query(
+      `UPDATE users SET email = 'anonyme-' || id || '@supprime.local',
+        nom = 'Anonyme', prenom = '', password_hash = ''
+       WHERE deleted_at IS NOT NULL AND deleted_at < $1
+         AND email NOT LIKE 'anonyme-%@supprime.local'`,
+      [cutoff]
+    )
     console.log(`[PURGE] Éléments effacés avant ${cutoff.toISOString()}`)
   } catch (err) {
     console.error('[PURGE] Erreur:', err.message)

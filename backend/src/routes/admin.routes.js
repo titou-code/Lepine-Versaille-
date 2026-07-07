@@ -93,7 +93,7 @@ router.get('/supprimes-recemment', authenticate, requireRole(['super_admin', 'ad
   try {
     const { rows: salles } = await pool.query('SELECT id, nom, deleted_at FROM salles WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')
     const { rows: etageres } = await pool.query('SELECT e.id, e.nom, e.deleted_at, s.nom AS salle_nom FROM etageres e LEFT JOIN salles s ON e.salle_id = s.id WHERE e.deleted_at IS NOT NULL ORDER BY e.deleted_at DESC')
-    const { rows: users } = await pool.query('SELECT id, email, nom, prenom, role, deleted_at FROM users WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')
+    const { rows: users } = await pool.query("SELECT id, email, nom, prenom, role, deleted_at FROM users WHERE deleted_at IS NOT NULL AND email NOT LIKE 'anonyme-%@supprime.local' ORDER BY deleted_at DESC")
     res.json({ salles, etageres, users })
   } catch (err) {
     res.status(500).json({ error: err.message })
