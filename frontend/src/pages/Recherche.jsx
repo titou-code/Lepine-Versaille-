@@ -69,7 +69,7 @@ export default function Recherche() {
           </button>
         </div>
         <p className="text-xs text-text-muted mt-2">
-          Recherche tolérante aux fautes dans : description, catégorie, thème, carton, salle, étagère, fondement juridique
+          Recherche tolérante aux fautes dans : description, catégorie, service, carton, salle, étagère, fondement juridique
         </p>
       </Card>
 

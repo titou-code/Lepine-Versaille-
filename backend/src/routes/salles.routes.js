@@ -71,10 +71,10 @@ router.post('/:id/delete', authenticate, requireRole(['admin']), async (req, res
 
 router.post('/etageres', authenticate, requireRole(['admin']), async (req, res) => {
   try {
-    const { salle_id, nom, description } = req.body
+    const { salle_id, nom, description, nombre_rangees } = req.body
     const { rows } = await pool.query(
-      'INSERT INTO etageres (salle_id, nom, description) VALUES ($1, $2, $3) RETURNING *',
-      [salle_id, nom, description || '']
+      'INSERT INTO etageres (salle_id, nom, description, nombre_rangees) VALUES ($1, $2, $3, $4) RETURNING *',
+      [salle_id, nom, description || '', nombre_rangees ?? 5]
     )
     await logAudit(req.user.id, 'creation', 'etageres', rows[0].id, { salle_id, nom })
     res.status(201).json(rows[0])
@@ -90,7 +90,7 @@ router.patch('/etageres/:id', authenticate, requireRole(['admin']), async (req, 
     const values = []
     let idx = 1
     for (const [key, val] of Object.entries(req.body)) {
-      if (['nom', 'description', 'actif'].includes(key)) {
+      if (['nom', 'description', 'actif', 'nombre_rangees'].includes(key)) {
         fields.push(`${key} = $${idx++}`)
         values.push(val)
       }

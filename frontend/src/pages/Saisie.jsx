@@ -112,7 +112,14 @@ export default function Saisie() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select label="Salle" value={salleId} onChange={e => setSalleId(e.target.value)} placeholder="Sélectionner une salle" options={salles.map(s => ({ value: s.id, label: s.nom }))} />
             <Select label="Étagère" value={etagereId} onChange={e => setEtagereId(e.target.value)} placeholder={etageres.length ? 'Sélectionner une étagère' : "Choisir une salle d'abord"} options={etageres.map(e => ({ value: e.id, label: e.nom }))} disabled={!salleId} />
-            <Input label="Emplacement (rangée/niveau)" value={emplacement} onChange={e => setEmplacement(e.target.value)} placeholder="Ex: Rangée 3, Niveau 2" />
+            {(() => {
+              const selectedEtagere = etageres.find(e => e.id === etagereId)
+              const nbRangees = selectedEtagere?.nombre_rangees || 0
+              if (etagereId && nbRangees > 0) {
+                return <Select label="Emplacement (rangée)" value={emplacement} onChange={e => setEmplacement(e.target.value)} placeholder="Sélectionner une rangée" options={Array.from({ length: nbRangees }, (_, i) => ({ value: `Rangée ${i + 1}`, label: `Rangée ${i + 1}` }))} />
+              }
+              return <Input label="Emplacement (rangée/niveau)" value={emplacement} onChange={e => setEmplacement(e.target.value)} placeholder="Ex: Rangée 3, Niveau 2" />
+            })()}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-text-secondary">N° Carton (auto)</label>
               <div className="px-3 py-2 rounded-lg bg-bg-primary border border-border text-accent font-mono text-lg font-bold">{numero || '—'}</div>

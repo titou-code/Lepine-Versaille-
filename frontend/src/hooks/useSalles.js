@@ -46,9 +46,9 @@ export function useSalles() {
     }
   }
 
-  async function createEtagere(salle_id, nom, description = '') {
+  async function createEtagere(salle_id, nom, description = '', nombre_rangees = 5) {
     try {
-      const data = await api.post('/salles/etageres', { salle_id, nom, description })
+      const data = await api.post('/salles/etageres', { salle_id, nom, description, nombre_rangees })
       fetchSalles()
       return { data, error: null }
     } catch (error) {

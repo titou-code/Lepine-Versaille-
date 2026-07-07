@@ -65,7 +65,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <Card>
-          <h2 className="text-lg font-semibold mb-4">Répartition par thème</h2>
+          <h2 className="text-lg font-semibold mb-4">Répartition par service</h2>
           <div className="space-y-2">
             {stats.parTheme.map(({ theme, count }) => (
               <div key={theme} className="flex items-center justify-between">
@@ -150,7 +150,7 @@ export default function Dashboard() {
             <thead className="bg-bg-secondary">
               <tr>
                 <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">N° Carton</th>
-                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Thème</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Service</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Catégorie</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Date ajout</th>
                 <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Statut</th>

@@ -125,7 +125,14 @@ function EditDocModal({ doc, open, onClose, onSaved, salles, categories }) {
                 </div>
                 <Select label="Salle" value={cartonSalleId} onChange={e => { setCartonSalleId(e.target.value); setCartonEtagereId('') }} options={salles.map(s => ({ value: s.id, label: s.nom }))} />
                 <Select label="Étagère" value={cartonEtagereId} onChange={e => setCartonEtagereId(e.target.value)} placeholder="Sélectionner" options={etageres.map(e => ({ value: e.id, label: e.nom }))} disabled={!cartonSalleId} />
-                <Input label="Emplacement" value={cartonEmplacement} onChange={e => setCartonEmplacement(e.target.value)} placeholder="Rangée, Niveau..." />
+                {(() => {
+                  const eta = etageres.find(e => e.id === cartonEtagereId)
+                  const nbRangees = eta?.nombre_rangees || 0
+                  if (cartonEtagereId && nbRangees > 0) {
+                    return <Select label="Emplacement (rangée)" value={cartonEmplacement} onChange={e => setCartonEmplacement(e.target.value)} placeholder="Sélectionner une rangée" options={Array.from({ length: nbRangees }, (_, i) => ({ value: `Rangée ${i + 1}`, label: `Rangée ${i + 1}` }))} />
+                  }
+                  return <Input label="Emplacement" value={cartonEmplacement} onChange={e => setCartonEmplacement(e.target.value)} placeholder="Rangée, Niveau..." />
+                })()}
               </div>
             )}
           </div>
@@ -172,6 +179,16 @@ function AddDocToCartonModal({ carton, open, onClose, onSaved, categories }) {
         date_evenement: '', duree_mois_saisie: '', procedure_close: false,
         _themeManuel: false,
       })
+      api.get(`/cartons/${carton.carton_id}/dernier-document`).then(lastDoc => {
+        if (lastDoc) {
+          setForm(prev => prev ? {
+            ...prev,
+            theme: lastDoc.theme || '',
+            categorie_cnil_id: lastDoc.categorie_cnil_id || '',
+            _themeManuel: !!lastDoc.theme,
+          } : prev)
+        }
+      }).catch(() => {})
     }
   }, [carton])
 
@@ -179,7 +196,7 @@ function AddDocToCartonModal({ carton, open, onClose, onSaved, categories }) {
 
   async function handleSave() {
     if (!form.theme || !form.categorie_cnil_id) {
-      toast('Thème et catégorie requis', 'error')
+      toast('Service et catégorie requis', 'error')
       return
     }
     setSaving(true)
@@ -284,7 +301,7 @@ export default function Inventaire() {
   }
 
   function exportCSV() {
-    const headers = ['N° Carton', 'Salle', 'Étagère', 'Emplacement', 'Thème', 'Catégorie CNIL', 'Description', 'Année', 'Date limite', 'Statut', 'Obligatoire']
+    const headers = ['N° Carton', 'Salle', 'Étagère', 'Emplacement', 'Service', 'Catégorie CNIL', 'Description', 'Année', 'Date limite', 'Statut', 'Obligatoire']
     const rows = filtered.map(d => [
       d.carton_numero, d.salle_nom, d.etagere_nom || '', d.emplacement || '',
       d.theme, d.categorie || '', d.description || '', d.annee_document || '',
@@ -325,7 +342,7 @@ export default function Inventaire() {
       <Card className="mb-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <Select value={filters.salle_id} onChange={e => setFilters(f => ({ ...f, salle_id: e.target.value }))} placeholder="Toutes les salles" options={salles.map(s => ({ value: s.id, label: s.nom }))} />
-          <Select value={filters.theme} onChange={e => setFilters(f => ({ ...f, theme: e.target.value }))} placeholder="Tous les thèmes" options={THEMES.map(t => ({ value: t, label: t }))} />
+          <Select value={filters.theme} onChange={e => setFilters(f => ({ ...f, theme: e.target.value }))} placeholder="Tous les services" options={THEMES.map(t => ({ value: t, label: t }))} />
           <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} placeholder="Tous les statuts" options={[
             { value: 'ok', label: 'OK' }, { value: 'bientot', label: 'Bientôt' }, { value: 'a_detruire', label: 'À détruire' },
           ]} />
@@ -351,7 +368,7 @@ export default function Inventaire() {
                 <SortHeader col="carton_numero">N° Carton</SortHeader>
                 <SortHeader col="salle_nom">Salle</SortHeader>
                 <SortHeader col="etagere_nom">Étagère</SortHeader>
-                <SortHeader col="theme">Thème</SortHeader>
+                <SortHeader col="theme">Service</SortHeader>
                 <SortHeader col="categorie">Catégorie</SortHeader>
                 <SortHeader col="description">Description</SortHeader>
                 <SortHeader col="annee_document">Année</SortHeader>

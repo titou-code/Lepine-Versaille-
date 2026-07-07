@@ -30,6 +30,7 @@ CREATE TABLE etageres (
   salle_id uuid REFERENCES salles(id) ON DELETE CASCADE,
   nom text NOT NULL,
   description text,
+  nombre_rangees integer DEFAULT 5,
   actif boolean DEFAULT true,
   deleted_at timestamp
 );
@@ -49,7 +50,9 @@ CREATE TABLE categories_cnil (
   date_maj date DEFAULT CURRENT_DATE,
   type_precision text,
   delai_apres_evenement_mois integer,
-  options_duree jsonb
+  options_duree jsonb,
+  actif boolean DEFAULT true,
+  deleted_at timestamp
 );
 
 CREATE TABLE cartons (

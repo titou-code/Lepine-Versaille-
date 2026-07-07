@@ -85,7 +85,7 @@ export default function FormDocument({ doc, onChange, categories: externalCatego
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Select label="Thème" value={doc.theme || ''} onChange={e => handleChange('theme', e.target.value)} placeholder="Choisir un thème"
+        <Select label="Service" value={doc.theme || ''} onChange={e => handleChange('theme', e.target.value)} placeholder="Choisir un service"
           options={THEMES.map(t => ({ value: t, label: t }))} />
         <Select label="Catégorie CNIL" value={doc.categorie_cnil_id || ''} onChange={e => handleChange('categorie_cnil_id', e.target.value)} placeholder="Choisir une catégorie"
           options={categories.map(c => ({ value: c.id, label: `${c.categorie} (${c.section})` }))} />

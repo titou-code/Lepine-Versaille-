@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, UserPlus, Building2, Layers, Users, Trash2, RotateCcw, ScrollText, FileX2 } from 'lucide-react'
+import { Plus, Edit2, UserPlus, Building2, Layers, Users, Trash2, RotateCcw, ScrollText, FileX2, BookOpen } from 'lucide-react'
 import { useSalles } from '../hooks/useSalles'
+import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/ui/Toast'
 import { api } from '../lib/api'
@@ -38,7 +39,7 @@ function SallesSection() {
   const toast = useToast()
   const [newSalle, setNewSalle] = useState('')
   const [editSalle, setEditSalle] = useState(null)
-  const [newEtagere, setNewEtagere] = useState({ salle_id: '', nom: '' })
+  const [newEtagere, setNewEtagere] = useState({ salle_id: '', nom: '', nombre_rangees: 5 })
   const [expandedSalle, setExpandedSalle] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
@@ -68,9 +69,9 @@ function SallesSection() {
 
   async function handleAddEtagere() {
     if (!newEtagere.salle_id || !newEtagere.nom.trim()) return
-    const { error } = await createEtagere(newEtagere.salle_id, newEtagere.nom.trim())
+    const { error } = await createEtagere(newEtagere.salle_id, newEtagere.nom.trim(), '', parseInt(newEtagere.nombre_rangees) || 5)
     if (error) toast(`Erreur : ${error.message}`, 'error')
-    else { toast('Étagère créée'); setNewEtagere({ salle_id: '', nom: '' }) }
+    else { toast('Étagère créée'); setNewEtagere({ salle_id: '', nom: '', nombre_rangees: 5 }) }
   }
 
   if (loading) return <div className="flex justify-center py-10"><Spinner /></div>
@@ -104,7 +105,7 @@ function SallesSection() {
                 <div className="ml-8 mt-2 space-y-1 pb-2">
                   {salle.etageres?.map(eta => (
                     <div key={eta.id} className="flex items-center justify-between px-3 py-1.5 text-sm text-text-secondary">
-                      <span>{eta.nom}</span>
+                      <span>{eta.nom} <span className="text-xs text-text-muted">({eta.nombre_rangees || 5} rangées)</span></span>
                       <Button variant="ghost" size="sm" onClick={() => setDeleteTarget({ type: 'etagere', id: eta.id, label: eta.nom })}>
                         <Trash2 size={12} className="text-danger" />
                       </Button>
@@ -124,9 +125,10 @@ function SallesSection() {
         <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
           <Layers size={18} className="text-accent" /> Ajouter une étagère
         </h3>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
           <Select value={newEtagere.salle_id} onChange={e => setNewEtagere(prev => ({ ...prev, salle_id: e.target.value }))} placeholder="Salle" options={salles.map(s => ({ value: s.id, label: s.nom }))} className="flex-1" />
           <Input value={newEtagere.nom} onChange={e => setNewEtagere(prev => ({ ...prev, nom: e.target.value }))} placeholder="Nom de l'étagère" className="flex-1" />
+          <Input type="number" value={newEtagere.nombre_rangees} onChange={e => setNewEtagere(prev => ({ ...prev, nombre_rangees: e.target.value }))} placeholder="Rangées" min="1" max="50" className="w-24" label="Rangées" />
           <Button onClick={handleAddEtagere} disabled={!newEtagere.salle_id || !newEtagere.nom.trim()}><Plus size={14} /> Ajouter</Button>
         </div>
       </Card>
@@ -434,6 +436,139 @@ function AuditSection() {
   )
 }
 
+function CategoriesSection() {
+  const { categories, sections, loading, fetchCategories, createCategory, updateCategory, deleteCategory } = useCategoriesCNIL()
+  const toast = useToast()
+  const [addModal, setAddModal] = useState(false)
+  const [editCat, setEditCat] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [sectionFilter, setSectionFilter] = useState('')
+  const [form, setForm] = useState({ categorie: '', section: '', duree_archivage_mois: '', type_date_reference: 'Date du document', obligatoire: false, fondement_juridique: '', theme_defaut: 'Autre' })
+
+  const filtered = sectionFilter ? categories.filter(c => c.section === sectionFilter) : categories
+
+  function openAdd() {
+    setForm({ categorie: '', section: '', duree_archivage_mois: '', type_date_reference: 'Date du document', obligatoire: false, fondement_juridique: '', theme_defaut: 'Autre' })
+    setAddModal(true)
+  }
+
+  function openEdit(cat) {
+    setForm({
+      categorie: cat.categorie, section: cat.section,
+      duree_archivage_mois: cat.duree_archivage_mois || '',
+      type_date_reference: cat.type_date_reference || 'Date du document',
+      obligatoire: cat.obligatoire, fondement_juridique: cat.fondement_juridique || '',
+      theme_defaut: cat.theme_defaut || 'Autre',
+    })
+    setEditCat(cat)
+  }
+
+  async function handleAdd() {
+    if (!form.categorie.trim() || !form.section.trim()) { toast('Catégorie et section requises', 'error'); return }
+    const payload = { ...form, duree_archivage_mois: form.duree_archivage_mois ? parseInt(form.duree_archivage_mois) : null }
+    const { error } = await createCategory(payload)
+    if (error) toast(`Erreur : ${error.message}`, 'error')
+    else { toast('Catégorie créée'); setAddModal(false) }
+  }
+
+  async function handleEdit() {
+    if (!editCat) return
+    const payload = { ...form, duree_archivage_mois: form.duree_archivage_mois ? parseInt(form.duree_archivage_mois) : null }
+    const { error } = await updateCategory(editCat.id, payload)
+    if (error) toast(`Erreur : ${error.message}`, 'error')
+    else { toast('Catégorie modifiée'); setEditCat(null) }
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    const { error } = await deleteCategory(deleteTarget.id)
+    if (error) toast(`Erreur : ${error.message}`, 'error')
+    else toast('Catégorie désactivée')
+    setDeleteTarget(null)
+  }
+
+  if (loading) return <div className="flex justify-center py-10"><Spinner /></div>
+
+  const formFields = (
+    <div className="space-y-4">
+      <Input label="Catégorie" value={form.categorie} onChange={e => setForm(p => ({ ...p, categorie: e.target.value }))} />
+      <Input label="Section" value={form.section} onChange={e => setForm(p => ({ ...p, section: e.target.value }))} />
+      <Input label="Durée archivage (mois)" type="number" value={form.duree_archivage_mois} onChange={e => setForm(p => ({ ...p, duree_archivage_mois: e.target.value }))} placeholder="Ex: 60" />
+      <Select label="Type date référence" value={form.type_date_reference} onChange={e => setForm(p => ({ ...p, type_date_reference: e.target.value }))} options={[{ value: 'Date du document', label: 'Date du document' }, { value: 'Date fin de relation', label: 'Date fin de relation' }]} />
+      <Select label="Service par défaut" value={form.theme_defaut} onChange={e => setForm(p => ({ ...p, theme_defaut: e.target.value }))} options={['RH', 'Comptabilité', 'Médical', 'SSIAD', 'CCAS', 'ESA', 'EHPAD', 'Juridique', 'Sécurité', 'Autre'].map(t => ({ value: t, label: t }))} />
+      <Input label="Fondement juridique" value={form.fondement_juridique} onChange={e => setForm(p => ({ ...p, fondement_juridique: e.target.value }))} />
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" checked={form.obligatoire} onChange={e => setForm(p => ({ ...p, obligatoire: e.target.checked }))} className="rounded border-border" />
+        Obligatoire
+      </label>
+    </div>
+  )
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold flex items-center gap-2"><BookOpen size={18} className="text-accent" /> Catégories CNIL</h3>
+          <Button size="sm" onClick={openAdd}><Plus size={14} /> Ajouter</Button>
+        </div>
+
+        <div className="mb-4">
+          <Select value={sectionFilter} onChange={e => setSectionFilter(e.target.value)} placeholder="Toutes les sections" options={sections.map(s => ({ value: s, label: s }))} />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-bg-secondary">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Section</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Catégorie</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Durée</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Service</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">Obligation</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map(cat => (
+                <tr key={cat.id} className="hover:bg-bg-hover transition-colors">
+                  <td className="px-3 py-2 whitespace-nowrap text-text-secondary">{cat.section}</td>
+                  <td className="px-3 py-2 max-w-[250px]">{cat.categorie}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{cat.duree_archivage_mois ? `${cat.duree_archivage_mois} mois` : '—'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-text-secondary">{cat.theme_defaut || '—'}</td>
+                  <td className="px-3 py-2"><Badge variant={cat.obligatoire ? 'obligatoire' : 'recommande'} /></td>
+                  <td className="px-3 py-2 text-center whitespace-nowrap">
+                    <div className="inline-flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(cat)}><Edit2 size={14} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(cat)}><Trash2 size={14} className="text-danger" /></Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={6} className="px-3 py-6 text-center text-text-muted">Aucune catégorie</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Modal open={addModal} onClose={() => setAddModal(false)} title="Ajouter une catégorie CNIL" footer={
+        <><Button variant="ghost" onClick={() => setAddModal(false)}>Annuler</Button><Button onClick={handleAdd}>Créer</Button></>
+      }>
+        {formFields}
+      </Modal>
+
+      <Modal open={!!editCat} onClose={() => setEditCat(null)} title="Modifier la catégorie" footer={
+        <><Button variant="ghost" onClick={() => setEditCat(null)}>Annuler</Button><Button onClick={handleEdit}>Enregistrer</Button></>
+      }>
+        {formFields}
+      </Modal>
+
+      <ConfirmDeleteModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} label={deleteTarget?.categorie || ''} />
+    </div>
+  )
+}
+
 export default function Admin() {
   const [tab, setTab] = useState('salles')
 
@@ -445,6 +580,7 @@ export default function Admin() {
         {[
           { key: 'salles', label: 'Salles & Étagères', icon: Building2 },
           { key: 'users', label: 'Utilisateurs', icon: Users },
+          { key: 'categories', label: 'Référentiel CNIL', icon: BookOpen },
           { key: 'supprimes', label: 'Corbeille', icon: Trash2 },
           { key: 'audit', label: 'Journal d\'audit', icon: ScrollText },
         ].map(t => (
@@ -463,6 +599,7 @@ export default function Admin() {
 
       {tab === 'salles' && <SallesSection />}
       {tab === 'users' && <UsersSection />}
+      {tab === 'categories' && <CategoriesSection />}
       {tab === 'supprimes' && <SupprimesSection />}
       {tab === 'audit' && <AuditSection />}
     </PageWrapper>

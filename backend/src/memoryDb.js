@@ -15,9 +15,9 @@ const store = {
     { id: 's3', nom: 'RDC - Bureau Agathe', actif: true, deleted_at: null },
   ],
   etageres: [
-    { id: 'e1', salle_id: 's1', nom: 'Étagère SS-1', description: '', actif: true, deleted_at: null },
-    { id: 'e2', salle_id: 's2', nom: 'Étagère E1-1', description: '', actif: true, deleted_at: null },
-    { id: 'e3', salle_id: 's3', nom: 'Étagère RDC-1', description: '', actif: true, deleted_at: null },
+    { id: 'e1', salle_id: 's1', nom: 'Étagère SS-1', description: '', nombre_rangees: 5, actif: true, deleted_at: null },
+    { id: 'e2', salle_id: 's2', nom: 'Étagère E1-1', description: '', nombre_rangees: 5, actif: true, deleted_at: null },
+    { id: 'e3', salle_id: 's3', nom: 'Étagère RDC-1', description: '', nombre_rangees: 5, actif: true, deleted_at: null },
   ],
   categories_cnil: [],
   cartons: [],
@@ -101,6 +101,7 @@ function seedCategories() {
       options_duree: options_duree ? JSON.parse(options_duree) : null,
       theme_defaut,
       details: null, duree_base_active: null, duree_archivage_intermediaire: null, source: null, date_maj: now().slice(0, 10),
+      actif: true, deleted_at: null,
     }
   })
 }
@@ -219,7 +220,7 @@ function handleQuery(text, values) {
     return { rows: store.etageres.filter(e => e.deleted_at).map(e => ({ ...e, salle_nom: (store.salles.find(s => s.id === e.salle_id) || {}).nom })) }
   }
   if (t.startsWith('INSERT INTO etageres')) {
-    const eta = { id: uuid(), salle_id: values[0], nom: values[1], description: values[2], actif: true, deleted_at: null }
+    const eta = { id: uuid(), salle_id: values[0], nom: values[1], description: values[2], nombre_rangees: values[3] ?? 5, actif: true, deleted_at: null }
     store.etageres.push(eta)
     return { rows: [eta] }
   }
@@ -244,7 +245,7 @@ function handleQuery(text, values) {
   // RESTAURATION
   if (t.includes('SET actif = true, deleted_at = NULL WHERE id')) {
     const id = values[0]
-    for (const table of [store.salles, store.etageres, store.users]) {
+    for (const table of [store.salles, store.etageres, store.users, store.categories_cnil]) {
       const item = table.find(x => x.id === id)
       if (item) { item.actif = true; item.deleted_at = null; break }
     }
@@ -255,6 +256,36 @@ function handleQuery(text, values) {
   if (t.includes('FROM categories_cnil WHERE id = $1')) {
     return { rows: store.categories_cnil.filter(c => c.id === values[0]) }
   }
+  if (t.startsWith('INSERT INTO categories_cnil')) {
+    const cat = {
+      id: uuid(), categorie: values[0], section: values[1], duree_archivage_mois: values[2],
+      type_date_reference: values[3], obligatoire: values[4], fondement_juridique: values[5],
+      theme_defaut: values[6], type_precision: values[7] || null,
+      delai_apres_evenement_mois: values[8] ?? null, options_duree: values[9] || null,
+      details: null, duree_base_active: null, duree_archivage_intermediaire: null,
+      source: null, date_maj: now().slice(0, 10), actif: true, deleted_at: null,
+    }
+    store.categories_cnil.push(cat)
+    return { rows: [cat] }
+  }
+  if (t.startsWith('UPDATE categories_cnil SET') && t.includes('deleted_at')) {
+    const cat = store.categories_cnil.find(c => c.id === values[0])
+    if (cat) { cat.actif = false; cat.deleted_at = now() }
+    return { rows: [] }
+  }
+  if (t.startsWith('UPDATE categories_cnil SET')) {
+    const id = values[values.length - 1]
+    const cat = store.categories_cnil.find(c => c.id === id)
+    if (cat) {
+      t.match(/SET (.+) WHERE/)[1].split(',').map(x => x.trim()).forEach((part, i) => {
+        cat[part.split('=')[0].trim()] = values[i]
+      })
+    }
+    return { rows: [] }
+  }
+  if (t.includes('FROM categories_cnil') && t.includes('actif = true')) {
+    return { rows: store.categories_cnil.filter(c => c.actif !== false).sort((a, b) => a.section.localeCompare(b.section) || a.categorie.localeCompare(b.categorie)) }
+  }
   if (t.includes('FROM categories_cnil')) {
     return { rows: [...store.categories_cnil].sort((a, b) => a.section.localeCompare(b.section) || a.categorie.localeCompare(b.categorie)) }
   }
@@ -264,6 +295,13 @@ function handleQuery(text, values) {
     const carton = { id: uuid(), numero: values[0], salle_id: values[1], etagere_id: values[2], emplacement: values[3], created_by: values[4], created_at: now() }
     store.cartons.push(carton)
     return { rows: [carton] }
+  }
+
+  // DERNIER DOCUMENT D'UN CARTON (LOT V)
+  if (t.includes('FROM documents WHERE carton_id = $1') && t.includes('ORDER BY created_at DESC') && t.includes('LIMIT 1')) {
+    const docs = store.documents.filter(d => d.carton_id === values[0] && !d.detruit)
+      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''))
+    return { rows: docs.length > 0 ? [docs[0]] : [] }
   }
 
   // DOCUMENTS

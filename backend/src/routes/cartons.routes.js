@@ -75,7 +75,7 @@ router.post('/:id/documents', authenticate, requireRole(['super_admin', 'admin',
     const doc = req.body
 
     if (!doc.theme || !doc.categorie_cnil_id) {
-      return res.status(400).json({ error: 'Thème et catégorie requis' })
+      return res.status(400).json({ error: 'Service et catégorie requis' })
     }
 
     const { rows: catRows } = await pool.query('SELECT * FROM categories_cnil WHERE id = $1', [doc.categorie_cnil_id])
@@ -102,6 +102,19 @@ router.post('/:id/documents', authenticate, requireRole(['super_admin', 'admin',
     )
     await logAudit(req.user.id, 'creation', 'documents', docRows[0].id, { theme: doc.theme, carton_id: id })
     res.status(201).json({ id: docRows[0].id, date_limite_conservation: dateLimite, a_completer: aCompleter })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/:id/dernier-document', authenticate, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { rows } = await pool.query(
+      'SELECT * FROM documents WHERE carton_id = $1 AND detruit = false ORDER BY created_at DESC LIMIT 1',
+      [id]
+    )
+    res.json(rows[0] || null)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
