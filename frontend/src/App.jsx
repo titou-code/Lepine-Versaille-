@@ -13,6 +13,7 @@ import ADetruire from './pages/ADetruire'
 import Referentiel from './pages/Referentiel'
 import Admin from './pages/Admin'
 import ACompleter from './pages/ACompleter'
+import InvitationAccept from './pages/InvitationAccept'
 
 function ProtectedRoute({ children, roles }) {
   const { user, role, loading } = useAuth()
@@ -52,6 +53,7 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/invitation" element={<InvitationAccept />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )

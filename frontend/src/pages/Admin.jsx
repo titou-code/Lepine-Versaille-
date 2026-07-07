@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, UserPlus, Building2, Layers, Users, Trash2, RotateCcw, ScrollText, FileX2, BookOpen } from 'lucide-react'
+import { Plus, Edit2, UserPlus, Mail, Building2, Layers, Users, Trash2, RotateCcw, ScrollText, FileX2, BookOpen, Copy } from 'lucide-react'
 import { useSalles } from '../hooks/useSalles'
 import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useAuth } from '../contexts/AuthContext'
@@ -150,6 +150,10 @@ function UsersSection() {
   const [inviteModal, setInviteModal] = useState(false)
   const [invite, setInvite] = useState({ email: '', password: '', nom: '', prenom: '', role: 'consultation' })
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [smtpReady, setSmtpReady] = useState(false)
+  const [emailInviteModal, setEmailInviteModal] = useState(false)
+  const [emailInvite, setEmailInvite] = useState({ email: '', nom: '', prenom: '', role: 'consultation' })
+  const [inviteLink, setInviteLink] = useState('')
   const { role: myRole, isSuperAdmin } = useAuth()
   const toast = useToast()
 
@@ -160,6 +164,7 @@ function UsersSection() {
   }
 
   useEffect(() => { fetchUsers() }, [])
+  useEffect(() => { api.get('/admin/smtp-status').then(d => setSmtpReady(d.smtp)).catch(() => {}) }, [])
 
   function canActOn(targetRole) {
     if (isSuperAdmin) return true
@@ -191,6 +196,22 @@ function UsersSection() {
     setDeleteTarget(null)
   }
 
+  async function handleEmailInvite() {
+    if (!emailInvite.email) { toast('Email requis', 'error'); return }
+    try {
+      const res = await api.post('/admin/users/invite', emailInvite)
+      if (res.link) {
+        setInviteLink(res.link)
+        toast(res.message, 'warning')
+      } else {
+        toast(res.message)
+        setEmailInviteModal(false)
+        setEmailInvite({ email: '', nom: '', prenom: '', role: 'consultation' })
+        setInviteLink('')
+      }
+    } catch (err) { toast(`Erreur : ${err.message}`, 'error') }
+  }
+
   async function changeRole(userId, role) {
     try { await api.patch(`/admin/users/${userId}`, { role }); toast('Rôle modifié'); fetchUsers() }
     catch (err) { toast(`Erreur : ${err.message}`, 'error') }
@@ -202,7 +223,10 @@ function UsersSection() {
     <Card>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold flex items-center gap-2"><Users size={18} className="text-accent" /> Utilisateurs</h3>
-        <Button size="sm" onClick={() => setInviteModal(true)}><UserPlus size={14} /> Créer</Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setEmailInviteModal(true)}><Mail size={14} /> Inviter</Button>
+          <Button size="sm" onClick={() => setInviteModal(true)}><UserPlus size={14} /> Créer</Button>
+        </div>
       </div>
 
       <div className="overflow-x-auto">
@@ -256,6 +280,27 @@ function UsersSection() {
           <Input label="Prénom" value={invite.prenom} onChange={e => setInvite(p => ({ ...p, prenom: e.target.value }))} />
           <Input label="Nom" value={invite.nom} onChange={e => setInvite(p => ({ ...p, nom: e.target.value }))} />
           <Select label="Rôle" value={invite.role} onChange={e => setInvite(p => ({ ...p, role: e.target.value }))} options={availableRoles} />
+        </div>
+      </Modal>
+
+      <Modal open={emailInviteModal} onClose={() => { setEmailInviteModal(false); setInviteLink('') }} title="Inviter un utilisateur" footer={
+        <><Button variant="ghost" onClick={() => { setEmailInviteModal(false); setInviteLink('') }}>Fermer</Button>{!inviteLink && <Button onClick={handleEmailInvite}>Envoyer l'invitation</Button>}</>
+      }>
+        <div className="space-y-4">
+          {!smtpReady && <div className="bg-warning/10 border border-warning/30 rounded-lg px-3 py-2 text-xs text-warning">SMTP non configuré — le lien sera affiché ici au lieu d'être envoyé par email.</div>}
+          <Input label="Email" type="email" value={emailInvite.email} onChange={e => setEmailInvite(p => ({ ...p, email: e.target.value }))} disabled={!!inviteLink} />
+          <Input label="Prénom" value={emailInvite.prenom} onChange={e => setEmailInvite(p => ({ ...p, prenom: e.target.value }))} disabled={!!inviteLink} />
+          <Input label="Nom" value={emailInvite.nom} onChange={e => setEmailInvite(p => ({ ...p, nom: e.target.value }))} disabled={!!inviteLink} />
+          <Select label="Rôle" value={emailInvite.role} onChange={e => setEmailInvite(p => ({ ...p, role: e.target.value }))} options={availableRoles} disabled={!!inviteLink} />
+          {inviteLink && (
+            <div className="bg-bg-secondary rounded-lg p-3 border border-border space-y-2">
+              <p className="text-xs text-text-muted">Lien d'invitation (valable 72h) :</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs break-all flex-1">{window.location.origin + inviteLink}</code>
+                <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(window.location.origin + inviteLink); toast('Lien copié') }}><Copy size={14} /></Button>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 

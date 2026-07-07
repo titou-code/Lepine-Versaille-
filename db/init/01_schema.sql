@@ -129,6 +129,21 @@ CREATE TABLE refresh_tokens (
   created_at timestamp DEFAULT now()
 );
 
+-- LOT — INVITATIONS
+CREATE TABLE invitations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email text NOT NULL,
+  role text NOT NULL CHECK (role IN ('super_admin', 'admin', 'archiviste', 'consultation')),
+  nom text,
+  prenom text,
+  token_hash text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  invited_by uuid REFERENCES users(id),
+  created_at timestamptz DEFAULT now()
+);
+CREATE INDEX idx_invitations_token_hash ON invitations(token_hash);
+
 -- 3. INDEXES
 CREATE INDEX idx_documents_carton_id ON documents(carton_id);
 CREATE INDEX idx_documents_date_limite ON documents(date_limite_conservation);

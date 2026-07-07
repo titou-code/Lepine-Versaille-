@@ -1,8 +1,10 @@
 const { Router } = require('express')
 const bcrypt = require('bcryptjs')
+const crypto = require('crypto')
 const pool = require('../db')
-const { authenticate, requireRole, peutGererUtilisateur, ROLE_HIERARCHY } = require('../middleware/auth')
+const { authenticate, requireRole, peutGererUtilisateur, hashToken, ROLE_HIERARCHY } = require('../middleware/auth')
 const { logAudit } = require('../audit')
+const { smtpReady, sendInvitation } = require('../mailer')
 
 const router = Router()
 
@@ -147,6 +149,50 @@ router.get('/documents-detruits', authenticate, requireRole(['super_admin', 'adm
        ORDER BY dest.date_destruction DESC`
     )
     res.json(rows)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/smtp-status', authenticate, requireRole(['super_admin', 'admin']), (req, res) => {
+  res.json({ smtp: smtpReady() })
+})
+
+router.post('/users/invite', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { email, role, nom, prenom } = req.body
+    if (!email) return res.status(400).json({ error: 'Email requis' })
+    const targetRole = role || 'consultation'
+    if (!peutGererUtilisateur(req.user, { role: targetRole })) {
+      return res.status(403).json({ error: 'Vous ne pouvez pas inviter avec ce rôle' })
+    }
+    const { rows: existing } = await pool.query('SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL', [email])
+    if (existing.length > 0) return res.status(409).json({ error: 'Un compte existe déjà avec cet email' })
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const tokenHash = hashToken(token)
+    const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
+
+    await pool.query(
+      'INSERT INTO invitations (email, role, nom, prenom, token_hash, expires_at, invited_by) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [email, targetRole, nom || '', prenom || '', tokenHash, expiresAt, req.user.id]
+    )
+
+    let emailSent = false
+    try {
+      const inviterName = `${req.user.prenom || ''} ${req.user.nom || ''}`.trim() || 'Un administrateur'
+      emailSent = await sendInvitation(email, token, inviterName)
+    } catch (mailErr) {
+      console.error('[INVITE] Erreur envoi email:', mailErr.message)
+    }
+
+    await logAudit(req.user.id, 'invitation', 'invitations', null, { email, role: targetRole, email_sent: emailSent })
+
+    if (emailSent) {
+      res.status(201).json({ success: true, message: 'Invitation envoyée par email' })
+    } else {
+      res.status(201).json({ success: true, message: 'Invitation créée (email non envoyé — SMTP non configuré)', link: `/invitation?token=${token}` })
+    }
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

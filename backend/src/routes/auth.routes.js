@@ -2,7 +2,7 @@ const { Router } = require('express')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
 const pool = require('../db')
-const { authenticate, signAccessToken, generateRefreshToken, hashToken, refreshExpiry } = require('../middleware/auth')
+const { authenticate, signAccessToken, generateRefreshToken, hashToken, refreshExpiry, ROLE_HIERARCHY } = require('../middleware/auth')
 const { logAudit } = require('../audit')
 
 const router = Router()
@@ -91,6 +91,54 @@ router.get('/me', authenticate, async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
     res.json(rows[0])
   } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/invitation/:token', async (req, res) => {
+  try {
+    const tokenHash = hashToken(req.params.token)
+    const { rows } = await pool.query(
+      'SELECT email, role, nom, prenom, expires_at, used_at FROM invitations WHERE token_hash = $1',
+      [tokenHash]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Invitation introuvable' })
+    const inv = rows[0]
+    if (inv.used_at) return res.status(410).json({ error: 'Cette invitation a déjà été utilisée' })
+    if (new Date(inv.expires_at) < new Date()) return res.status(410).json({ error: 'Cette invitation a expiré' })
+    res.json({ email: inv.email, role: inv.role, nom: inv.nom, prenom: inv.prenom })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/invitation/accept', async (req, res) => {
+  try {
+    const { token, password } = req.body
+    if (!token || !password) return res.status(400).json({ error: 'Token et mot de passe requis' })
+    if (password.length < 8) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
+
+    const tokenHash = hashToken(token)
+    const { rows } = await pool.query(
+      'SELECT id, email, role, nom, prenom, expires_at, used_at FROM invitations WHERE token_hash = $1',
+      [tokenHash]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Invitation introuvable' })
+    const inv = rows[0]
+    if (inv.used_at) return res.status(410).json({ error: 'Cette invitation a déjà été utilisée' })
+    if (new Date(inv.expires_at) < new Date()) return res.status(410).json({ error: 'Cette invitation a expiré' })
+
+    const hash = await bcrypt.hash(password, 10)
+    const { rows: userRows } = await pool.query(
+      'INSERT INTO users (email, password_hash, nom, prenom, role) VALUES ($1,$2,$3,$4,$5) RETURNING id, email, nom, prenom, role',
+      [inv.email, hash, inv.nom || '', inv.prenom || '', inv.role]
+    )
+
+    await pool.query('UPDATE invitations SET used_at = NOW() WHERE id = $1', [inv.id])
+
+    res.status(201).json({ success: true, user: userRows[0] })
+  } catch (err) {
+    if (err.code === '23505') return res.status(409).json({ error: 'Un compte existe déjà avec cet email' })
     res.status(500).json({ error: err.message })
   }
 })
