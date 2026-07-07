@@ -11,7 +11,7 @@ CREATE TABLE users (
   password_hash text NOT NULL,
   nom text,
   prenom text,
-  role text NOT NULL CHECK (role IN ('admin', 'archiviste', 'consultation')),
+  role text NOT NULL CHECK (role IN ('super_admin', 'admin', 'archiviste', 'consultation')),
   actif boolean DEFAULT true,
   deleted_at timestamp,
   created_at timestamptz DEFAULT now()
@@ -85,6 +85,7 @@ CREATE TABLE documents (
   a_completer boolean DEFAULT false,
   detruit boolean DEFAULT false,
   created_by uuid REFERENCES users(id),
+  session_id uuid,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -122,6 +123,7 @@ CREATE TABLE refresh_tokens (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid REFERENCES users(id),
   token_hash text NOT NULL,
+  session_id uuid,
   expires_at timestamp NOT NULL,
   revoked boolean DEFAULT false,
   created_at timestamp DEFAULT now()
@@ -139,6 +141,7 @@ CREATE INDEX idx_cartons_numero ON cartons(numero);
 CREATE INDEX idx_etageres_salle_id ON etageres(salle_id);
 CREATE INDEX idx_audit_log_table ON audit_log(table_concernee, enregistrement_id);
 CREATE INDEX idx_audit_log_user ON audit_log(user_id);
+CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
 
 -- 4. FONCTION NUMÉROTATION ATOMIQUE
 CREATE OR REPLACE FUNCTION generate_numero_carton(prefix text)
