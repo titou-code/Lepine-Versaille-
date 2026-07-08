@@ -10,8 +10,14 @@ export function computeStatut(dateLimite, seuilJours = 30) {
   return 'ok'
 }
 
+export function isValidYear(y) {
+  if (y === null || y === undefined || y === '') return false
+  const n = Number(y)
+  return Number.isInteger(n) && n >= 1900 && n <= 2100
+}
+
 export function computeDateReference(typeDateRef, anneeDocument) {
-  if (typeDateRef === 'Date du document' && anneeDocument) {
+  if (typeDateRef === 'Date du document' && isValidYear(anneeDocument)) {
     return `${anneeDocument}-12-31`
   }
   return null
@@ -20,13 +26,17 @@ export function computeDateReference(typeDateRef, anneeDocument) {
 export function computeDateLimite(dateReference, dureeMois) {
   if (!dateReference || !dureeMois) return null
   const date = new Date(dateReference)
+  if (isNaN(date.getTime())) return null
   date.setMonth(date.getMonth() + dureeMois)
+  if (isNaN(date.getTime())) return null
   return date.toISOString().split('T')[0]
 }
 
 export function formatDate(dateStr) {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('fr-FR')
+  const date = new Date(dateStr)
+  if (isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('fr-FR')
 }
 
 export function getPrefixFromSalle(nomSalle) {

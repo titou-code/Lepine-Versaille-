@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useSalles } from '../hooks/useSalles'
-import { computeDateReference, computeDateLimite, computeStatut, THEMES } from '../lib/utils'
+import { computeDateReference, computeDateLimite, computeStatut, isValidYear, THEMES } from '../lib/utils'
 import Input from './ui/Input'
 import Select from './ui/Select'
 import Badge from './ui/Badge'
@@ -70,12 +70,12 @@ export default function FormDocument({ doc, onChange, categories: externalCatego
 
     if (field === 'categorie_cnil_id' || field === 'annee_document' || field === 'manualDateRef') {
       const c = categories.find(x => x.id === updated.categorie_cnil_id)
-      if (c && updated.annee_document) {
-        if (c.type_date_reference === 'Date du document') {
-          updated.date_reference = computeDateReference('Date du document', updated.annee_document)
-        } else if (updated.manualDateRef) {
-          updated.date_reference = updated.manualDateRef
-        }
+      if (c && c.type_date_reference === 'Date du document') {
+        updated.date_reference = isValidYear(updated.annee_document)
+          ? computeDateReference('Date du document', updated.annee_document)
+          : null
+      } else if (c && updated.manualDateRef) {
+        updated.date_reference = updated.manualDateRef
       }
     }
 
@@ -111,7 +111,7 @@ export default function FormDocument({ doc, onChange, categories: externalCatego
         <PrecisionMiniForm doc={doc} cat={cat} onChange={(field, value) => handleChange(field, value)} />
       )}
 
-      {cat && doc.annee_document && (
+      {cat && isValidYear(doc.annee_document) && (
         <div className="mt-4 pt-4 border-t border-border grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <div>
             <p className="text-xs text-text-muted mb-1">Type date</p>
