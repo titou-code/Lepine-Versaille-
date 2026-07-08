@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Package, FileText, AlertTriangle, AlertCircle, MapPin } from 'lucide-react'
 import { useDocuments } from '../hooks/useDocuments'
+import { api } from '../lib/api'
 import { computeStatut, formatDate, THEMES } from '../lib/utils'
 import PageWrapper from '../components/layout/PageWrapper'
 import Header from '../components/layout/Header'
@@ -24,6 +25,11 @@ function KPICard({ icon: Icon, label, value, color }) {
 
 export default function Dashboard() {
   const { documents, loading } = useDocuments({})
+  const [backupAlert, setBackupAlert] = useState(false)
+
+  useEffect(() => {
+    api.get('/admin/backup-status').then(d => setBackupAlert(!!d.alert)).catch(() => {})
+  }, [])
 
   const stats = useMemo(() => {
     const withStatut = documents.map(d => ({
@@ -55,6 +61,13 @@ export default function Dashboard() {
   return (
     <PageWrapper>
       <Header title="Dashboard" subtitle="Vue d'ensemble des archives" />
+
+      {backupAlert && (
+        <div className="mb-6 flex items-center gap-3 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+          <AlertTriangle size={18} className="flex-shrink-0" />
+          <span>⚠ Aucune sauvegarde réussie depuis plus de 48 h — contactez votre prestataire informatique.</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <KPICard icon={Package} label="Cartons" value={stats.totalCartons} color="bg-accent/10 text-accent" />

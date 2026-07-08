@@ -1,4 +1,5 @@
 const { Router } = require('express')
+const fs = require('fs')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
 const pool = require('../db')
@@ -189,6 +190,21 @@ router.get('/documents-detruits', authenticate, requireRole(['super_admin', 'adm
 
 router.get('/smtp-status', authenticate, requireRole(['super_admin', 'admin']), (req, res) => {
   res.json({ smtp: smtpReady() })
+})
+
+router.get('/backup-status', authenticate, (req, res) => {
+  const statusPath = '/backups/status.json'
+  const pendingResponse = { last_success: null, last_error: null, last_error_message: null, alert: false, pending: true }
+  try {
+    if (!fs.existsSync(statusPath)) return res.json(pendingResponse)
+    const status = JSON.parse(fs.readFileSync(statusPath, 'utf8'))
+    const lastSuccess = status.last_success ? new Date(status.last_success) : null
+    const alert = !lastSuccess || (Date.now() - lastSuccess.getTime() > 48 * 60 * 60 * 1000)
+    res.json({ ...status, alert })
+  } catch (err) {
+    console.error('[BACKUP-STATUS]', err)
+    res.json(pendingResponse)
+  }
 })
 
 router.post('/users/invite', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {

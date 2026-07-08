@@ -32,6 +32,8 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
       APP_URL: ${APP_URL:-http://localhost:8080}
+    volumes:
+      - ./backups:/backups:ro
     healthcheck:
       test: ["CMD-SHELL", "node -e \"fetch('http://localhost:4000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
@@ -62,15 +64,11 @@ services:
         condition: service_healthy
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD:-archives_secret}
+      POSTGRES_USER: ${POSTGRES_USER:-archives}
     volumes:
       - ./backups:/backups
-    entrypoint: /bin/sh
-    command: >
-      -c "while true; do
-        pg_dump -h db -U ${POSTGRES_USER:-archives} archives > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql;
-        find /backups -name '*.sql' -mtime +30 -delete;
-        sleep 86400;
-      done"
+      - ./db/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "/backup.sh"]
 
 volumes:
   pgdata:

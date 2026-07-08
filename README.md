@@ -64,7 +64,22 @@ docker compose exec backend node scripts/create-admin.js admin@lepine.fr motdepa
 | `db` | PostgreSQL 16 avec healthcheck |
 | `backend` | API Express sur port 4000 (interne) |
 | `frontend` | Nginx servant le SPA + proxy API |
-| `backup` | Backup quotidien pg_dump, rétention 30 jours |
+| `backup` | Sauvegarde quotidienne compressée (`pg_dump -Fc`), vérifiée, rétention 30 jours |
+
+## Sauvegardes et restauration
+
+Le service `backup` réalise une sauvegarde compressée (`pg_dump -Fc`) toutes les 24 h dans
+le dossier `backups/`, sous la forme `backup_AAAAMMJJ_HHMMSS.dump`. Chaque cycle est vérifié
+(code retour de `pg_dump` **et** taille du fichier) et son résultat est écrit dans
+`backups/status.json`. Le dashboard affiche une alerte si aucune sauvegarde n'a réussi
+depuis plus de 48 h.
+
+Pour restaurer une sauvegarde (format compressé) :
+
+```bash
+docker compose exec backup \
+  pg_restore -h db -U archives -d archives --clean --if-exists /backups/backup_AAAAMMJJ_HHMMSS.dump
+```
 
 ## Authentification
 
