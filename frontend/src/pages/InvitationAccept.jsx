@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { Archive, UserPlus } from 'lucide-react'
 import { api } from '../lib/api'
+import { PASSWORD_RULE } from '../lib/utils'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Spinner from '../components/ui/Spinner'
@@ -71,7 +72,10 @@ export default function InvitationAccept() {
               <Input label="Prénom" value={invitation.prenom || ''} disabled />
               <Input label="Nom" value={invitation.nom || ''} disabled />
               <Input label="Rôle" value={invitation.role.replace('_', ' ')} disabled />
-              <Input label="Mot de passe" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Minimum 8 caractères" required />
+              <div>
+                <Input label="Mot de passe" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Minimum 8 caractères" required />
+                <p className="text-xs text-text-muted mt-1">{PASSWORD_RULE}</p>
+              </div>
               <Input label="Confirmer le mot de passe" type="password" value={passwordConfirm} onChange={e => setPasswordConfirm(e.target.value)} placeholder="Retapez le mot de passe" required />
               {error && <div className="bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">{error}</div>}
               <Button type="submit" className="w-full" disabled={submitting}>

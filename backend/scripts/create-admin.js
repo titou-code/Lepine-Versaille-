@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs')
 const { Pool } = require('pg')
+const { validatePassword } = require('../src/passwordPolicy')
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 
@@ -13,6 +14,9 @@ async function main() {
     console.error('Usage: node scripts/create-admin.js <email> <password> [nom] [prenom]')
     process.exit(1)
   }
+
+  const pwCheck = validatePassword(password)
+  if (!pwCheck.ok) console.warn('⚠ Avertissement :', pwCheck.error)
 
   const hash = await bcrypt.hash(password, 10)
   try {

@@ -61,3 +61,5 @@ export const THEMES = [
 export const METHODES_DESTRUCTION = [
   'Broyage', 'Déchetterie', 'Confidentiel', 'Autre'
 ]
+
+export const PASSWORD_RULE = 'Au moins 8 caractères, dont un chiffre et un caractère spécial'

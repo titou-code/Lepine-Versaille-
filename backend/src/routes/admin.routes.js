@@ -5,6 +5,7 @@ const pool = require('../db')
 const { authenticate, requireRole, peutGererUtilisateur, hashToken, ROLE_HIERARCHY } = require('../middleware/auth')
 const { logAudit } = require('../audit')
 const { smtpReady, sendInvitation } = require('../mailer')
+const { validatePassword } = require('../passwordPolicy')
 
 const router = Router()
 
@@ -23,6 +24,8 @@ router.post('/users', authenticate, requireRole(['super_admin', 'admin']), async
   try {
     const { email, password, nom, prenom, role } = req.body
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' })
+    const pwCheck = validatePassword(password)
+    if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error })
     const targetRole = role || 'consultation'
     if (!peutGererUtilisateur(req.user, { role: targetRole })) {
       return res.status(403).json({ error: 'Vous ne pouvez pas créer un utilisateur avec ce rôle' })
@@ -51,6 +54,10 @@ router.patch('/users/:id', authenticate, requireRole(['super_admin', 'admin']), 
     }
     if (req.body.role && !peutGererUtilisateur(req.user, { role: req.body.role })) {
       return res.status(403).json({ error: 'Vous ne pouvez pas attribuer ce rôle' })
+    }
+    if (req.body.password) {
+      const pwCheck = validatePassword(req.body.password)
+      if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error })
     }
     const fields = []
     const values = []

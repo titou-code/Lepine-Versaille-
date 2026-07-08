@@ -5,7 +5,7 @@ import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/ui/Toast'
 import { api } from '../lib/api'
-import { formatDate } from '../lib/utils'
+import { formatDate, PASSWORD_RULE } from '../lib/utils'
 import PageWrapper from '../components/layout/PageWrapper'
 import Header from '../components/layout/Header'
 import Card from '../components/ui/Card'
@@ -276,7 +276,10 @@ function UsersSection() {
       }>
         <div className="space-y-4">
           <Input label="Email" type="email" value={invite.email} onChange={e => setInvite(p => ({ ...p, email: e.target.value }))} />
-          <Input label="Mot de passe" type="password" value={invite.password} onChange={e => setInvite(p => ({ ...p, password: e.target.value }))} />
+          <div>
+            <Input label="Mot de passe" type="password" value={invite.password} onChange={e => setInvite(p => ({ ...p, password: e.target.value }))} />
+            <p className="text-xs text-text-muted mt-1">{PASSWORD_RULE}</p>
+          </div>
           <Input label="Prénom" value={invite.prenom} onChange={e => setInvite(p => ({ ...p, prenom: e.target.value }))} />
           <Input label="Nom" value={invite.nom} onChange={e => setInvite(p => ({ ...p, nom: e.target.value }))} />
           <Select label="Rôle" value={invite.role} onChange={e => setInvite(p => ({ ...p, role: e.target.value }))} options={availableRoles} />

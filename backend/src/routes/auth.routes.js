@@ -4,6 +4,7 @@ const crypto = require('crypto')
 const pool = require('../db')
 const { authenticate, signAccessToken, generateRefreshToken, hashToken, refreshExpiry, ROLE_HIERARCHY } = require('../middleware/auth')
 const { logAudit } = require('../audit')
+const { validatePassword } = require('../passwordPolicy')
 
 const router = Router()
 
@@ -116,7 +117,8 @@ router.post('/invitation/accept', async (req, res) => {
   try {
     const { token, password } = req.body
     if (!token || !password) return res.status(400).json({ error: 'Token et mot de passe requis' })
-    if (password.length < 8) return res.status(400).json({ error: 'Le mot de passe doit faire au moins 8 caractères' })
+    const pwCheck = validatePassword(password)
+    if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error })
 
     const tokenHash = hashToken(token)
     const { rows } = await pool.query(
