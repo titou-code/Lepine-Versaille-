@@ -62,7 +62,8 @@ export default function Saisie() {
     const validDocs = documents.filter(d => d.theme && d.categorie_cnil_id)
     if (validDocs.length === 0) { toast('Ajoutez au moins un document', 'error'); return }
 
-    const cartonData = { numero, salle_id: salleId, etagere_id: etagereId || null, emplacement: emplacement || null, created_by: user.id }
+    const prefix = getPrefixFromSalle(selectedSalle.nom)
+    const cartonData = { prefix, salle_id: salleId, etagere_id: etagereId || null, emplacement: emplacement || null, created_by: user.id }
 
     const docsData = validDocs.map(doc => {
       const cat = categories.find(c => c.id === doc.categorie_cnil_id)
@@ -121,8 +122,11 @@ export default function Saisie() {
               return <Input label="Emplacement (rangée/niveau)" value={emplacement} onChange={e => setEmplacement(e.target.value)} placeholder="Ex: Rangée 3, Niveau 2" />
             })()}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-text-secondary">N° Carton (auto)</label>
-              <div className="px-3 py-2 rounded-lg bg-bg-primary border border-border text-accent font-mono text-lg font-bold">{numero || '—'}</div>
+              <label className="text-sm font-medium text-text-secondary">N° Carton</label>
+              <div className="px-3 py-2 rounded-lg bg-bg-primary border border-border text-accent font-mono text-lg font-bold flex items-baseline gap-2">
+                <span>{numero || '—'}</span>
+                {numero && <span className="text-xs font-sans font-normal text-text-muted">(prévisionnel)</span>}
+              </div>
             </div>
           </div>
           <div className="flex justify-end mt-6">
@@ -136,6 +140,7 @@ export default function Saisie() {
           <div className="mb-4 bg-bg-card border border-border rounded-lg px-4 py-3 flex items-center gap-4">
             <span className="text-sm text-text-secondary">Carton :</span>
             <span className="font-mono font-bold text-accent">{numero}</span>
+            <span className="text-xs text-text-muted">(prévisionnel)</span>
             <span className="text-text-muted">|</span>
             <span className="text-sm text-text-secondary">{selectedSalle?.nom}</span>
             <Button variant="ghost" size="sm" onClick={() => setStep(1)}>Modifier</Button>

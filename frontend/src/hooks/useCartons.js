@@ -5,7 +5,7 @@ export function useCartons() {
   const [loading, setLoading] = useState(false)
 
   async function getNextNumero(prefix) {
-    const data = await api.post('/cartons/numero', { prefix })
+    const data = await api.get(`/cartons/numero/preview?prefix=${encodeURIComponent(prefix)}`)
     return data.numero
   }
 

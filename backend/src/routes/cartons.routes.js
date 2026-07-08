@@ -6,11 +6,14 @@ const { calculerDateLimite } = require('../dateLimite')
 
 const router = Router()
 
-router.post('/numero', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
+router.get('/numero/preview', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
   try {
-    const { prefix } = req.body
-    const { rows } = await pool.query('SELECT generate_numero_carton($1) AS numero', [prefix])
-    res.json({ numero: rows[0].numero })
+    const { prefix } = req.query
+    if (!prefix) return res.status(400).json({ error: 'Préfixe requis' })
+    const { rows } = await pool.query('SELECT dernier_numero FROM compteurs_numerotation WHERE prefixe = $1', [prefix])
+    const next = rows.length > 0 ? rows[0].dernier_numero + 1 : 1
+    const numero = `${prefix}-${String(next).padStart(3, '0')}`
+    res.json({ numero })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -22,12 +25,20 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
     await client.query('BEGIN')
     const { carton, documents } = req.body
 
+    if (!carton || !carton.prefix) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Préfixe du carton requis' })
+    }
+
+    const { rows: numRows } = await client.query('SELECT generate_numero_carton($1) AS numero', [carton.prefix])
+    const numero = numRows[0].numero
+
     const { rows: cartonRows } = await client.query(
       'INSERT INTO cartons (numero, salle_id, etagere_id, emplacement, created_by) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [carton.numero, carton.salle_id, carton.etagere_id || null, carton.emplacement || null, req.user.id]
+      [numero, carton.salle_id, carton.etagere_id || null, carton.emplacement || null, req.user.id]
     )
     const newCarton = cartonRows[0]
-    await logAudit(req.user.id, 'creation', 'cartons', newCarton.id, { numero: carton.numero })
+    await logAudit(req.user.id, 'creation', 'cartons', newCarton.id, { numero })
 
     if (documents && documents.length > 0) {
       for (const doc of documents) {
