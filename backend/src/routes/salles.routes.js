@@ -19,7 +19,8 @@ router.get('/', authenticate, async (req, res) => {
     }
     res.json(salles)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[SALLES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -33,7 +34,8 @@ router.post('/', authenticate, requireRole(['admin']), async (req, res) => {
     await logAudit(req.user.id, 'creation', 'salles', rows[0].id, { nom })
     res.status(201).json(rows[0])
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[SALLES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -54,7 +56,8 @@ router.patch('/:id', authenticate, requireRole(['admin']), async (req, res) => {
     await pool.query(`UPDATE salles SET ${fields.join(', ')} WHERE id = $${idx}`, values)
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[SALLES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -65,7 +68,8 @@ router.post('/:id/delete', authenticate, requireRole(['admin']), async (req, res
     await logAudit(req.user.id, 'suppression', 'salles', id)
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[SALLES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -79,7 +83,8 @@ router.post('/etageres', authenticate, requireRole(['admin']), async (req, res) 
     await logAudit(req.user.id, 'creation', 'etageres', rows[0].id, { salle_id, nom })
     res.status(201).json(rows[0])
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[SALLES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -100,7 +105,8 @@ router.patch('/etageres/:id', authenticate, requireRole(['admin']), async (req, 
     await pool.query(`UPDATE etageres SET ${fields.join(', ')} WHERE id = $${idx}`, values)
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[SALLES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -111,7 +117,8 @@ router.post('/etageres/:id/delete', authenticate, requireRole(['admin']), async 
     await logAudit(req.user.id, 'suppression', 'etageres', id)
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[SALLES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 

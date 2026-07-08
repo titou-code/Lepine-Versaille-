@@ -16,7 +16,8 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
     await logAudit(req.user.id, 'destruction', 'documents', document_id, { methode, notes })
     res.status(201).json(rows[0])
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[DESTRUCTIONS]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 

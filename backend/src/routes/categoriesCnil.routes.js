@@ -12,7 +12,8 @@ router.get('/', authenticate, async (req, res) => {
     )
     res.json(rows)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[CATEGORIES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -23,7 +24,8 @@ router.get('/all', authenticate, requireRole(['super_admin', 'admin']), async (r
     )
     res.json(rows)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[CATEGORIES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -38,7 +40,8 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin']), async (req
     await logAudit(req.user.id, 'creation', 'categories_cnil', rows[0].id, { categorie, section })
     res.status(201).json(rows[0])
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[CATEGORIES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -61,7 +64,8 @@ router.put('/:id', authenticate, requireRole(['super_admin', 'admin']), async (r
     await logAudit(req.user.id, 'modification', 'categories_cnil', id, req.body)
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[CATEGORIES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -72,7 +76,8 @@ router.post('/:id/delete', authenticate, requireRole(['super_admin', 'admin']), 
     await logAudit(req.user.id, 'suppression', 'categories_cnil', id)
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[CATEGORIES]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 

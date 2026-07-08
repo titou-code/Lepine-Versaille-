@@ -53,7 +53,8 @@ router.post('/login', authLimiter, async (req, res) => {
       user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role, must_change_password: user.must_change_password }
     })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -75,7 +76,8 @@ router.post('/refresh', async (req, res) => {
     const accessToken = signAccessToken({ id: row.uid, role: row.role, session_id: row.session_id })
     res.json({ token: accessToken })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -89,7 +91,8 @@ router.post('/logout', async (req, res) => {
     res.clearCookie('refresh_token', { path: '/api/auth' })
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -102,7 +105,8 @@ router.get('/me', authenticate, async (req, res) => {
     if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
     res.json(rows[0])
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -168,7 +172,8 @@ router.post('/reset-password', async (req, res) => {
 
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -199,7 +204,8 @@ router.post('/change-password', authenticate, async (req, res) => {
     await logAudit(req.user.id, 'changement_mdp', 'users', req.user.id, { action: 'changement_mot_de_passe' })
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -216,7 +222,8 @@ router.get('/invitation/:token', async (req, res) => {
     if (new Date(inv.expires_at) < new Date()) return res.status(410).json({ error: 'Cette invitation a expiré' })
     res.json({ email: inv.email, role: inv.role, nom: inv.nom, prenom: inv.prenom })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -248,7 +255,8 @@ router.post('/invitation/accept', async (req, res) => {
     res.status(201).json({ success: true, user: userRows[0] })
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Un compte existe déjà avec cet email' })
-    res.status(500).json({ error: err.message })
+    console.error('[AUTH]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 

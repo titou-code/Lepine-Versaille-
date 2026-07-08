@@ -17,7 +17,8 @@ router.get('/users', authenticate, requireRole(['super_admin', 'admin']), async 
     )
     res.json(rows)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -40,7 +41,8 @@ router.post('/users', authenticate, requireRole(['super_admin', 'admin']), async
     res.status(201).json(rows[0])
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé' })
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -84,7 +86,8 @@ router.patch('/users/:id', authenticate, requireRole(['super_admin', 'admin']), 
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'modification', ...safeBody })
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -100,7 +103,8 @@ router.post('/users/:id/delete', authenticate, requireRole(['super_admin', 'admi
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'suppression' })
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -122,7 +126,8 @@ router.patch('/users/:id/reset-password', authenticate, requireRole(['super_admi
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'reinitialisation_mdp' })
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -133,7 +138,8 @@ router.get('/supprimes-recemment', authenticate, requireRole(['super_admin', 'ad
     const { rows: users } = await pool.query("SELECT id, email, nom, prenom, role, deleted_at FROM users WHERE deleted_at IS NOT NULL AND email NOT LIKE 'anonyme-%@supprime.local' ORDER BY deleted_at DESC")
     res.json({ salles, etageres, users })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -146,7 +152,8 @@ router.post('/restaurer', authenticate, requireRole(['super_admin', 'admin']), a
     await logAudit(req.user.id, 'restauration', table, id)
     res.json({ success: true })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -167,7 +174,8 @@ router.get('/audit', authenticate, requireRole(['super_admin', 'admin']), async 
     )
     res.json(rows)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -184,7 +192,8 @@ router.get('/documents-detruits', authenticate, requireRole(['super_admin', 'adm
     )
     res.json(rows)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -243,7 +252,8 @@ router.post('/users/invite', authenticate, requireRole(['super_admin', 'admin'])
       res.status(201).json({ success: true, message: 'Invitation créée (email non envoyé — SMTP non configuré)', link: `/invitation?token=${token}` })
     }
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[ADMIN]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 

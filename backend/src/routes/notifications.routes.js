@@ -27,7 +27,8 @@ router.get('/compteurs', authenticate, async (req, res) => {
 
     res.json({ a_completer, a_detruire, bientot })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[NOTIFICATIONS]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 

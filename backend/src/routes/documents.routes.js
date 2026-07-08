@@ -34,7 +34,8 @@ router.get('/', authenticate, async (req, res) => {
     )
     res.json(rows)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[DOCUMENTS]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -45,7 +46,8 @@ router.get('/a-completer', authenticate, requireRole(['super_admin', 'admin', 'a
     )
     res.json(rows)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[DOCUMENTS]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -73,7 +75,8 @@ router.patch('/:id/completer', authenticate, requireRole(['super_admin', 'admin'
     await logAudit(req.user.id, 'modification', 'documents', id, { action: 'completion' })
     res.json({ success: true, date_limite_conservation: dateLimite })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[DOCUMENTS]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -171,7 +174,8 @@ router.put('/:id', authenticate, requireRole(['super_admin', 'admin', 'archivist
     await logAudit(req.user.id, 'modification', 'documents', id, diff)
     res.json({ success: true, date_limite_conservation: dateLimite, a_completer: aCompleter })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[DOCUMENTS]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
@@ -218,7 +222,8 @@ router.get('/recherche-intelligente', authenticate, async (req, res) => {
     const matched = scored.filter(d => d._score > 0).sort((a, b) => b._score - a._score).slice(0, 50)
     res.json(matched)
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[DOCUMENTS]', err)
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
 
