@@ -105,6 +105,13 @@ docker compose exec backup \
 - **Référentiel CNIL** — Tableau des durées légales de conservation
 - **Admin** — Gestion salles, étagères, utilisateurs
 
+## Accès distant et chiffrement
+
+L'application est servie en HTTP et doit rester sur le réseau interne de l'établissement.
+Pour un accès chiffré ou depuis l'extérieur, placez un reverse proxy TLS (Caddy ou équivalent)
+devant le port de l'application, qui se charge du certificat et du HTTPS.
+Cette mise en place constitue une prestation d'installation séparée.
+
 ## Développement local (sans Docker)
 
 ```bash
