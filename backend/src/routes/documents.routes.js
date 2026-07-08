@@ -62,12 +62,13 @@ router.patch('/:id/completer', authenticate, requireRole(['super_admin', 'admin'
     const { rows: docRows } = await pool.query('SELECT * FROM documents WHERE id = $1', [id])
     const doc = { ...docRows[0], date_evenement, duree_mois_saisie, procedure_close, date_precise }
     const dateLimite = calculerDateLimite(doc, catRows[0])
+    const aCompleter = (dateLimite === null || dateLimite === undefined)
 
     await pool.query(
       `UPDATE documents SET date_evenement = $1, duree_mois_saisie = $2, procedure_close = $3, date_precise = $4,
        date_limite_conservation = $5, a_completer = $6 WHERE id = $7`,
       [date_evenement || null, duree_mois_saisie || null, procedure_close ?? null, date_precise || null,
-       dateLimite, !dateLimite, id]
+       dateLimite, aCompleter, id]
     )
     await logAudit(req.user.id, 'modification', 'documents', id, { action: 'completion' })
     res.json({ success: true, date_limite_conservation: dateLimite })
@@ -120,13 +121,10 @@ router.put('/:id', authenticate, requireRole(['super_admin', 'admin', 'archivist
     }
 
     let dateLimite = null
-    let aCompleter = false
     if (cat) {
       dateLimite = calculerDateLimite(updatedDoc, cat)
-      if (!dateLimite && (cat.type_precision || !cat.duree_archivage_mois)) {
-        aCompleter = true
-      }
     }
+    const aCompleter = (dateLimite === null || dateLimite === undefined)
 
     await pool.query(
       `UPDATE documents SET theme=$1, categorie_cnil_id=$2, description=$3, annee_document=$4,

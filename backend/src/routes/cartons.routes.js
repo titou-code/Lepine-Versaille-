@@ -32,7 +32,6 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
     if (documents && documents.length > 0) {
       for (const doc of documents) {
         let dateLimite = doc.date_limite_conservation || null
-        let aCompleter = false
 
         if (doc.categorie_cnil_id) {
           const { rows: catRows } = await client.query('SELECT * FROM categories_cnil WHERE id = $1', [doc.categorie_cnil_id])
@@ -40,11 +39,11 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
             const calculated = calculerDateLimite(doc, catRows[0])
             if (calculated) {
               dateLimite = calculated
-            } else if (catRows[0].type_precision || !catRows[0].duree_archivage_mois) {
-              aCompleter = true
             }
           }
         }
+
+        const aCompleter = (dateLimite === null || dateLimite === undefined)
 
         const { rows: docRows } = await client.query(
           `INSERT INTO documents (carton_id, theme, categorie_cnil_id, description, annee_document, type_date, date_reference, date_limite_conservation, obligatoire, fondement_juridique, date_precise, date_evenement, duree_mois_saisie, procedure_close, a_completer, created_by, session_id)
@@ -83,13 +82,11 @@ router.post('/:id/documents', authenticate, requireRole(['super_admin', 'admin',
     const cat = catRows[0]
 
     let dateLimite = null
-    let aCompleter = false
     const calculated = calculerDateLimite(doc, cat)
     if (calculated) {
       dateLimite = calculated
-    } else if (cat.type_precision || !cat.duree_archivage_mois) {
-      aCompleter = true
     }
+    const aCompleter = (dateLimite === null || dateLimite === undefined)
 
     const { rows: docRows } = await pool.query(
       `INSERT INTO documents (carton_id, theme, categorie_cnil_id, description, annee_document, type_date, date_reference, date_limite_conservation, obligatoire, fondement_juridique, date_precise, date_evenement, duree_mois_saisie, procedure_close, a_completer, created_by, session_id)
