@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Archive, LogIn } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { api } from '../lib/api'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Spinner from '../components/ui/Spinner'
@@ -11,6 +12,16 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const [smtpEnabled, setSmtpEnabled] = useState(false)
+  const [mode, setMode] = useState('login')
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+
+  useEffect(() => {
+    api.get('/auth/config').then(d => setSmtpEnabled(!!d.smtp)).catch(() => {})
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -25,6 +36,16 @@ export default function Login() {
     }
   }
 
+  async function handleForgot(e) {
+    e.preventDefault()
+    setForgotLoading(true)
+    try {
+      await api.post('/auth/forgot-password', { email: forgotEmail })
+    } catch {}
+    setForgotSent(true)
+    setForgotLoading(false)
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg-primary">
       <div className="w-full max-w-sm">
@@ -36,34 +57,77 @@ export default function Login() {
           <p className="text-sm text-text-secondary mt-1">Lépine Versailles</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-bg-card border border-border rounded-xl p-6 space-y-4">
-          <Input
-            label="Email"
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            placeholder="votre@email.fr"
-            required
-          />
-          <Input
-            label="Mot de passe"
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-          />
+        {mode === 'login' && (
+          <form onSubmit={handleSubmit} className="bg-bg-card border border-border rounded-xl p-6 space-y-4">
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="votre@email.fr"
+              required
+            />
+            <Input
+              label="Mot de passe"
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+            />
 
-          {error && (
-            <div className="bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="bg-danger/10 border border-danger/30 rounded-lg px-3 py-2 text-sm text-danger">
+                {error}
+              </div>
+            )}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? <Spinner size="sm" /> : <><LogIn size={16} /> Connexion</>}
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? <Spinner size="sm" /> : <><LogIn size={16} /> Connexion</>}
+            </Button>
+
+            {smtpEnabled && (
+              <button type="button" onClick={() => { setMode('forgot'); setError('') }} className="w-full text-xs text-text-muted hover:text-accent cursor-pointer">
+                Mot de passe oublié ?
+              </button>
+            )}
+          </form>
+        )}
+
+        {mode === 'forgot' && (
+          <div className="bg-bg-card border border-border rounded-xl p-6 space-y-4">
+            {forgotSent ? (
+              <>
+                <p className="text-sm text-text-secondary">
+                  Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.
+                </p>
+                <Button variant="outline" className="w-full" onClick={() => { setMode('login'); setForgotSent(false); setForgotEmail('') }}>
+                  Retour à la connexion
+                </Button>
+              </>
+            ) : (
+              <form onSubmit={handleForgot} className="space-y-4">
+                <p className="text-sm text-text-secondary">
+                  Saisissez votre email pour recevoir un lien de réinitialisation.
+                </p>
+                <Input
+                  label="Email"
+                  type="email"
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  placeholder="votre@email.fr"
+                  required
+                />
+                <Button type="submit" className="w-full" disabled={forgotLoading}>
+                  {forgotLoading ? <Spinner size="sm" /> : 'Envoyer le lien'}
+                </Button>
+                <button type="button" onClick={() => { setMode('login'); setForgotEmail('') }} className="w-full text-xs text-text-muted hover:text-accent cursor-pointer">
+                  Retour à la connexion
+                </button>
+              </form>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

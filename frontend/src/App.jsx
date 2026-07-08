@@ -15,6 +15,7 @@ import Admin from './pages/Admin'
 import ACompleter from './pages/ACompleter'
 import InvitationAccept from './pages/InvitationAccept'
 import ChangePassword from './pages/ChangePassword'
+import ResetPassword from './pages/ResetPassword'
 
 function ProtectedRoute({ children, roles }) {
   const { user, role, loading } = useAuth()
@@ -55,6 +56,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/invitation" element={<InvitationAccept />} />
+        <Route path="/reinitialisation" element={<ResetPassword />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )

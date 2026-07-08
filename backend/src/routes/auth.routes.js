@@ -5,6 +5,7 @@ const pool = require('../db')
 const { authenticate, signAccessToken, generateRefreshToken, hashToken, refreshExpiry, ROLE_HIERARCHY } = require('../middleware/auth')
 const { logAudit } = require('../audit')
 const { validatePassword } = require('../passwordPolicy')
+const { smtpReady, sendPasswordReset } = require('../mailer')
 
 const router = Router()
 
@@ -91,6 +92,72 @@ router.get('/me', authenticate, async (req, res) => {
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
     res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.get('/config', (req, res) => {
+  res.json({ smtp: smtpReady() })
+})
+
+router.post('/forgot-password', async (req, res) => {
+  const genericResponse = { success: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' }
+  try {
+    const { email } = req.body
+    if (!email || !smtpReady()) return res.json(genericResponse)
+
+    const { rows } = await pool.query('SELECT id FROM users WHERE email = $1 AND actif = true AND deleted_at IS NULL', [email])
+    if (rows.length === 0) return res.json(genericResponse)
+
+    const userId = rows[0].id
+    await pool.query('UPDATE password_resets SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL', [userId])
+
+    const token = crypto.randomBytes(32).toString('hex')
+    const tokenHash = hashToken(token)
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+    await pool.query(
+      'INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1,$2,$3)',
+      [userId, tokenHash, expiresAt]
+    )
+
+    try {
+      await sendPasswordReset(email, token)
+    } catch (mailErr) {
+      console.error('[FORGOT] Erreur envoi email:', mailErr.message)
+    }
+
+    res.json(genericResponse)
+  } catch (err) {
+    console.error('[FORGOT]', err)
+    res.json(genericResponse)
+  }
+})
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, password } = req.body
+    if (!token || !password) return res.status(400).json({ error: 'Token et mot de passe requis' })
+    const pwCheck = validatePassword(password)
+    if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error })
+
+    const tokenHash = hashToken(token)
+    const { rows } = await pool.query(
+      'SELECT id, user_id, expires_at, used_at FROM password_resets WHERE token_hash = $1',
+      [tokenHash]
+    )
+    if (rows.length === 0) return res.status(404).json({ error: 'Lien de réinitialisation introuvable' })
+    const pr = rows[0]
+    if (pr.used_at) return res.status(410).json({ error: 'Ce lien a déjà été utilisé' })
+    if (new Date(pr.expires_at) < new Date()) return res.status(410).json({ error: 'Ce lien a expiré' })
+
+    const hash = await bcrypt.hash(password, 10)
+    await pool.query('UPDATE users SET password_hash = $1, must_change_password = false WHERE id = $2', [hash, pr.user_id])
+    await pool.query('UPDATE password_resets SET used_at = NOW() WHERE id = $1', [pr.id])
+    await pool.query('UPDATE refresh_tokens SET revoked = true WHERE user_id = $1', [pr.user_id])
+    await logAudit(pr.user_id, 'reinitialisation_mdp', 'users', pr.user_id, { action: 'reset_par_email' })
+
+    res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

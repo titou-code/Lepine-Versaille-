@@ -27,10 +27,10 @@ async function sendInvitation(email, token, inviterName) {
   await transporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER,
     to: email,
-    subject: 'Invitation — Archives Lépine Versailles',
+    subject: 'Invitation — Archives',
     html: `
       <p>Bonjour,</p>
-      <p>${inviterName} vous invite à rejoindre l'application <strong>Archives Lépine Versailles</strong>.</p>
+      <p>${inviterName} vous invite à rejoindre l'application <strong>Archives</strong>.</p>
       <p><a href="${url}">Cliquez ici pour créer votre compte</a></p>
       <p>Ce lien est valable 72 heures.</p>
       <p>Si vous n'êtes pas concerné(e), ignorez cet email.</p>
@@ -39,4 +39,22 @@ async function sendInvitation(email, token, inviterName) {
   return true
 }
 
-module.exports = { smtpReady, sendInvitation }
+async function sendPasswordReset(email, token) {
+  if (!transporter) return false
+  const url = `${process.env.APP_URL || 'http://localhost:8080'}/reinitialisation?token=${token}`
+  await transporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER,
+    to: email,
+    subject: 'Réinitialisation de votre mot de passe — Archives',
+    html: `
+      <p>Bonjour,</p>
+      <p>Vous avez demandé la réinitialisation de votre mot de passe sur l'application <strong>Archives</strong>.</p>
+      <p><a href="${url}">Cliquez ici pour choisir un nouveau mot de passe</a></p>
+      <p>Ce lien est valable 1 heure.</p>
+      <p>Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+    `,
+  })
+  return true
+}
+
+module.exports = { smtpReady, sendInvitation, sendPasswordReset }

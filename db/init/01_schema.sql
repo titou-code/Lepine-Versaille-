@@ -145,6 +145,17 @@ CREATE TABLE invitations (
 );
 CREATE INDEX idx_invitations_token_hash ON invitations(token_hash);
 
+-- LOT — RÉINITIALISATION MOT DE PASSE
+CREATE TABLE password_resets (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id),
+  token_hash text NOT NULL,
+  expires_at timestamptz NOT NULL,
+  used_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+CREATE INDEX idx_password_resets_token_hash ON password_resets(token_hash);
+
 -- 3. INDEXES
 CREATE INDEX idx_documents_carton_id ON documents(carton_id);
 CREATE INDEX idx_documents_date_limite ON documents(date_limite_conservation);
