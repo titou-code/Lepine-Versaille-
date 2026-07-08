@@ -14,6 +14,7 @@ CREATE TABLE users (
   role text NOT NULL CHECK (role IN ('super_admin', 'admin', 'archiviste', 'consultation')),
   actif boolean DEFAULT true,
   must_change_password boolean DEFAULT false,
+  email_original text,
   deleted_at timestamp,
   created_at timestamptz DEFAULT now()
 );

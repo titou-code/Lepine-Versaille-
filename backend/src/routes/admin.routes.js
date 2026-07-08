@@ -99,7 +99,13 @@ router.post('/users/:id/delete', authenticate, requireRole(['super_admin', 'admi
     if (!peutGererUtilisateur(req.user, targetRows[0])) {
       return res.status(403).json({ error: 'Action non autorisée sur cet utilisateur' })
     }
-    await pool.query('UPDATE users SET actif = false, deleted_at = NOW() WHERE id = $1', [id])
+    await pool.query(
+      `UPDATE users SET actif = false, deleted_at = NOW(),
+         email_original = email,
+         email = 'supprime-' || extract(epoch from now())::bigint || '-' || email
+       WHERE id = $1`,
+      [id]
+    )
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'suppression' })
     res.json({ success: true })
   } catch (err) {
@@ -135,7 +141,7 @@ router.get('/supprimes-recemment', authenticate, requireRole(['super_admin', 'ad
   try {
     const { rows: salles } = await pool.query('SELECT id, nom, deleted_at FROM salles WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')
     const { rows: etageres } = await pool.query('SELECT e.id, e.nom, e.deleted_at, s.nom AS salle_nom FROM etageres e LEFT JOIN salles s ON e.salle_id = s.id WHERE e.deleted_at IS NOT NULL ORDER BY e.deleted_at DESC')
-    const { rows: users } = await pool.query("SELECT id, email, nom, prenom, role, deleted_at FROM users WHERE deleted_at IS NOT NULL AND email NOT LIKE 'anonyme-%@supprime.local' ORDER BY deleted_at DESC")
+    const { rows: users } = await pool.query("SELECT id, email_original, nom, prenom, role, deleted_at FROM users WHERE deleted_at IS NOT NULL AND email NOT LIKE 'anonyme-%@supprime.local' ORDER BY deleted_at DESC")
     res.json({ salles, etageres, users })
   } catch (err) {
     console.error('[ADMIN]', err)
@@ -148,6 +154,27 @@ router.post('/restaurer', authenticate, requireRole(['super_admin', 'admin']), a
     const { type, id } = req.body
     const table = { salles: 'salles', etageres: 'etageres', users: 'users' }[type]
     if (!table) return res.status(400).json({ error: 'Type invalide' })
+
+    if (type === 'users') {
+      const { rows: uRows } = await pool.query('SELECT email_original FROM users WHERE id = $1', [id])
+      if (uRows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
+      const emailOrig = uRows[0].email_original
+      if (emailOrig) {
+        const { rows: conflict } = await pool.query(
+          'SELECT id FROM users WHERE email = $1 AND deleted_at IS NULL AND id <> $2',
+          [emailOrig, id]
+        )
+        if (conflict.length > 0) {
+          return res.status(409).json({ error: 'Cette adresse a été réattribuée — restauration impossible sous cet email' })
+        }
+        await pool.query('UPDATE users SET actif = true, deleted_at = NULL, email = $1, email_original = NULL WHERE id = $2', [emailOrig, id])
+      } else {
+        await pool.query('UPDATE users SET actif = true, deleted_at = NULL WHERE id = $1', [id])
+      }
+      await logAudit(req.user.id, 'restauration', 'users', id)
+      return res.json({ success: true })
+    }
+
     await pool.query(`UPDATE ${table} SET actif = true, deleted_at = NULL WHERE id = $1`, [id])
     await logAudit(req.user.id, 'restauration', table, id)
     res.json({ success: true })

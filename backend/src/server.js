@@ -52,7 +52,7 @@ async function purgeSupprimes() {
     await pool.query('DELETE FROM salles WHERE deleted_at IS NOT NULL AND deleted_at < $1', [cutoff])
     await pool.query(
       `UPDATE users SET email = 'anonyme-' || id || '@supprime.local',
-        nom = 'Anonyme', prenom = '', password_hash = ''
+        nom = 'Anonyme', prenom = '', password_hash = '', email_original = NULL
        WHERE deleted_at IS NOT NULL AND deleted_at < $1
          AND email NOT LIKE 'anonyme-%@supprime.local'`,
       [cutoff]

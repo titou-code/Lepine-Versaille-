@@ -390,7 +390,7 @@ function ElementsSupprimes() {
   const all = [
     ...data.salles.map(s => ({ ...s, _type: 'salles', _label: `Salle: ${s.nom}` })),
     ...data.etageres.map(e => ({ ...e, _type: 'etageres', _label: `Étagère: ${e.nom}${e.salle_nom ? ` (${e.salle_nom})` : ''}` })),
-    ...data.users.map(u => ({ ...u, _type: 'users', _label: `Utilisateur: ${u.prenom} ${u.nom}` })),
+    ...data.users.map(u => ({ ...u, _type: 'users', _label: `Utilisateur: ${u.prenom} ${u.nom}${u.email_original ? ` — ${u.email_original}` : ''}` })),
   ].sort((a, b) => (b.deleted_at || '').localeCompare(a.deleted_at || ''))
 
   if (all.length === 0) {
