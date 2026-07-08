@@ -14,6 +14,7 @@ import Referentiel from './pages/Referentiel'
 import Admin from './pages/Admin'
 import ACompleter from './pages/ACompleter'
 import InvitationAccept from './pages/InvitationAccept'
+import ChangePassword from './pages/ChangePassword'
 
 function ProtectedRoute({ children, roles }) {
   const { user, role, loading } = useAuth()
@@ -41,7 +42,7 @@ function getDefaultRoute(role) {
 }
 
 function AppRoutes() {
-  const { user, role, loading } = useAuth()
+  const { user, role, loading, mustChangePassword } = useAuth()
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-bg-primary">
@@ -57,6 +58,10 @@ function AppRoutes() {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     )
+  }
+
+  if (mustChangePassword) {
+    return <ChangePassword />
   }
 
   return (

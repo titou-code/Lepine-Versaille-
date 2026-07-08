@@ -279,6 +279,7 @@ function UsersSection() {
           <div>
             <Input label="Mot de passe" type="password" value={invite.password} onChange={e => setInvite(p => ({ ...p, password: e.target.value }))} />
             <p className="text-xs text-text-muted mt-1">{PASSWORD_RULE}</p>
+            <p className="text-xs text-warning mt-1">Mot de passe temporaire — l'utilisateur devra le changer à sa première connexion.</p>
           </div>
           <Input label="Prénom" value={invite.prenom} onChange={e => setInvite(p => ({ ...p, prenom: e.target.value }))} />
           <Input label="Nom" value={invite.nom} onChange={e => setInvite(p => ({ ...p, nom: e.target.value }))} />

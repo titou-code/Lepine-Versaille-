@@ -40,7 +40,7 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token: accessToken,
-      user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role }
+      user: { id: user.id, email: user.email, nom: user.nom, prenom: user.prenom, role: user.role, must_change_password: user.must_change_password }
     })
   } catch (err) {
     res.status(500).json({ error: err.message })
@@ -86,11 +86,42 @@ router.post('/logout', async (req, res) => {
 router.get('/me', authenticate, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, email, nom, prenom, role, actif FROM users WHERE id = $1',
+      'SELECT id, email, nom, prenom, role, actif, must_change_password FROM users WHERE id = $1',
       [req.user.id]
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
     res.json(rows[0])
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
+router.post('/change-password', authenticate, async (req, res) => {
+  try {
+    const { current_password, new_password } = req.body
+    if (!current_password || !new_password) return res.status(400).json({ error: 'Mot de passe actuel et nouveau requis' })
+    const pwCheck = validatePassword(new_password)
+    if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error })
+
+    const { rows } = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id])
+    if (rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
+
+    const valid = await bcrypt.compare(current_password, rows[0].password_hash)
+    if (!valid) return res.status(401).json({ error: 'Mot de passe actuel incorrect' })
+
+    const same = await bcrypt.compare(new_password, rows[0].password_hash)
+    if (same) return res.status(400).json({ error: 'Le nouveau mot de passe doit être différent de l\'actuel' })
+
+    const hash = await bcrypt.hash(new_password, 10)
+    await pool.query('UPDATE users SET password_hash = $1, must_change_password = false WHERE id = $2', [hash, req.user.id])
+
+    await pool.query(
+      'UPDATE refresh_tokens SET revoked = true WHERE user_id = $1 AND session_id IS DISTINCT FROM $2',
+      [req.user.id, req.user.session_id || null]
+    )
+
+    await logAudit(req.user.id, 'changement_mdp', 'users', req.user.id, { action: 'changement_mot_de_passe' })
+    res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -132,7 +163,7 @@ router.post('/invitation/accept', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10)
     const { rows: userRows } = await pool.query(
-      'INSERT INTO users (email, password_hash, nom, prenom, role) VALUES ($1,$2,$3,$4,$5) RETURNING id, email, nom, prenom, role',
+      'INSERT INTO users (email, password_hash, nom, prenom, role, must_change_password) VALUES ($1,$2,$3,$4,$5,false) RETURNING id, email, nom, prenom, role',
       [inv.email, hash, inv.nom || '', inv.prenom || '', inv.role]
     )
 

@@ -32,7 +32,7 @@ router.post('/users', authenticate, requireRole(['super_admin', 'admin']), async
     }
     const hash = await bcrypt.hash(password, 10)
     const { rows } = await pool.query(
-      'INSERT INTO users (email, password_hash, nom, prenom, role) VALUES ($1,$2,$3,$4,$5) RETURNING id, email, nom, prenom, role, actif',
+      'INSERT INTO users (email, password_hash, nom, prenom, role, must_change_password) VALUES ($1,$2,$3,$4,$5,true) RETURNING id, email, nom, prenom, role, actif',
       [email, hash, nom || '', prenom || '', targetRole]
     )
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', rows[0].id, { action: 'creation', email, role: targetRole })
@@ -70,6 +70,10 @@ router.patch('/users/:id', authenticate, requireRole(['super_admin', 'admin']), 
       if (key === 'password' && val) {
         fields.push(`password_hash = $${idx++}`)
         values.push(await bcrypt.hash(val, 10))
+        if (id !== req.user.id) {
+          fields.push(`must_change_password = $${idx++}`)
+          values.push(true)
+        }
       }
     }
     if (fields.length === 0) return res.status(400).json({ error: 'Rien à modifier' })

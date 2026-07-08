@@ -22,6 +22,11 @@ export function AuthProvider({ children }) {
     setProfile(null)
   }
 
+  function markPasswordChanged() {
+    setUser(u => u ? { ...u, must_change_password: false } : u)
+    setProfile(p => p ? { ...p, must_change_password: false } : p)
+  }
+
   useEffect(() => {
     function handleExpired() { signOut() }
     window.addEventListener('auth:expired', handleExpired)
@@ -34,11 +39,13 @@ export function AuthProvider({ children }) {
   const isArchiviste = role === 'archiviste'
   const canWrite = isAdmin || isArchiviste
   const canManage = isAdmin
+  const mustChangePassword = !!profile?.must_change_password
 
   return (
     <AuthContext.Provider value={{
       user, profile, loading, role,
       isSuperAdmin, isAdmin, isArchiviste, canWrite, canManage,
+      mustChangePassword, markPasswordChanged,
       signIn, signOut
     }}>
       {children}

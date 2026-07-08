@@ -13,6 +13,7 @@ CREATE TABLE users (
   prenom text,
   role text NOT NULL CHECK (role IN ('super_admin', 'admin', 'archiviste', 'consultation')),
   actif boolean DEFAULT true,
+  must_change_password boolean DEFAULT false,
   deleted_at timestamp,
   created_at timestamptz DEFAULT now()
 );
