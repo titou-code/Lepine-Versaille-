@@ -1,4 +1,5 @@
 const { Router } = require('express')
+const rateLimit = require('express-rate-limit')
 const bcrypt = require('bcryptjs')
 const crypto = require('crypto')
 const pool = require('../db')
@@ -9,7 +10,15 @@ const { smtpReady, sendPasswordReset } = require('../mailer')
 
 const router = Router()
 
-router.post('/login', async (req, res) => {
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives, réessayez dans quelques minutes' },
+})
+
+router.post('/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' })
@@ -101,7 +110,7 @@ router.get('/config', (req, res) => {
   res.json({ smtp: smtpReady() })
 })
 
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', authLimiter, async (req, res) => {
   const genericResponse = { success: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' }
   try {
     const { email } = req.body
