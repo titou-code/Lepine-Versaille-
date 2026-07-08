@@ -2,8 +2,10 @@ const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
 
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-production') {
+const WEAK_JWT_SECRETS = ['change-me-in-production', 'dev-secret-change-me', 'dev-secret']
+if (!process.env.JWT_SECRET || WEAK_JWT_SECRETS.includes(process.env.JWT_SECRET) || process.env.JWT_SECRET.length < 32) {
   console.error('FATAL: JWT_SECRET absent ou valeur par défaut — arrêt du backend')
+  console.error('Générez un secret robuste avec : openssl rand -hex 32')
   process.exit(1)
 }
 

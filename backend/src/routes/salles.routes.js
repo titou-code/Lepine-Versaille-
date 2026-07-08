@@ -24,7 +24,7 @@ router.get('/', authenticate, async (req, res) => {
   }
 })
 
-router.post('/', authenticate, requireRole(['admin']), async (req, res) => {
+router.post('/', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
   try {
     const { nom } = req.body
     const { rows } = await pool.query(
@@ -39,7 +39,7 @@ router.post('/', authenticate, requireRole(['admin']), async (req, res) => {
   }
 })
 
-router.patch('/:id', authenticate, requireRole(['admin']), async (req, res) => {
+router.patch('/:id', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
   try {
     const { id } = req.params
     const fields = []
@@ -61,7 +61,7 @@ router.patch('/:id', authenticate, requireRole(['admin']), async (req, res) => {
   }
 })
 
-router.post('/:id/delete', authenticate, requireRole(['admin']), async (req, res) => {
+router.post('/:id/delete', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
   try {
     const { id } = req.params
     await pool.query('UPDATE salles SET actif = false, deleted_at = NOW() WHERE id = $1', [id])
@@ -73,7 +73,7 @@ router.post('/:id/delete', authenticate, requireRole(['admin']), async (req, res
   }
 })
 
-router.post('/etageres', authenticate, requireRole(['admin']), async (req, res) => {
+router.post('/etageres', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
   try {
     const { salle_id, nom, description, nombre_rangees } = req.body
     const { rows } = await pool.query(
@@ -88,7 +88,7 @@ router.post('/etageres', authenticate, requireRole(['admin']), async (req, res) 
   }
 })
 
-router.patch('/etageres/:id', authenticate, requireRole(['admin']), async (req, res) => {
+router.patch('/etageres/:id', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
   try {
     const { id } = req.params
     const fields = []
@@ -110,7 +110,7 @@ router.patch('/etageres/:id', authenticate, requireRole(['admin']), async (req, 
   }
 })
 
-router.post('/etageres/:id/delete', authenticate, requireRole(['admin']), async (req, res) => {
+router.post('/etageres/:id/delete', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
   try {
     const { id } = req.params
     await pool.query('UPDATE etageres SET actif = false, deleted_at = NOW() WHERE id = $1', [id])

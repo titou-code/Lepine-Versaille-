@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken')
 const crypto = require('crypto')
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me'
+const JWT_SECRET = process.env.JWT_SECRET
 const ACCESS_EXPIRES = '2h'
 const REFRESH_DAYS = 7
 
