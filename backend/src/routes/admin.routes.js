@@ -103,6 +103,28 @@ router.post('/users/:id/delete', authenticate, requireRole(['super_admin', 'admi
   }
 })
 
+router.patch('/users/:id/reset-password', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { password } = req.body
+    const { rows: targetRows } = await pool.query('SELECT id, role FROM users WHERE id = $1', [id])
+    if (targetRows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' })
+    if (!peutGererUtilisateur(req.user, targetRows[0])) {
+      return res.status(403).json({ error: 'Action non autorisée sur cet utilisateur' })
+    }
+    const pwCheck = validatePassword(password)
+    if (!pwCheck.ok) return res.status(400).json({ error: pwCheck.error })
+
+    const hash = await bcrypt.hash(password, 10)
+    await pool.query('UPDATE users SET password_hash = $1, must_change_password = true WHERE id = $2', [hash, id])
+    await pool.query('UPDATE refresh_tokens SET revoked = true WHERE user_id = $1', [id])
+    await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'reinitialisation_mdp' })
+    res.json({ success: true })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+})
+
 router.get('/supprimes-recemment', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
   try {
     const { rows: salles } = await pool.query('SELECT id, nom, deleted_at FROM salles WHERE deleted_at IS NOT NULL ORDER BY deleted_at DESC')

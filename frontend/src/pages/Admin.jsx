@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit2, UserPlus, Mail, Building2, Layers, Users, Trash2, RotateCcw, ScrollText, FileX2, BookOpen, Copy } from 'lucide-react'
+import { Plus, Edit2, UserPlus, Mail, Building2, Layers, Users, Trash2, RotateCcw, ScrollText, FileX2, BookOpen, Copy, KeyRound } from 'lucide-react'
 import { useSalles } from '../hooks/useSalles'
 import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useAuth } from '../contexts/AuthContext'
@@ -150,6 +150,9 @@ function UsersSection() {
   const [inviteModal, setInviteModal] = useState(false)
   const [invite, setInvite] = useState({ email: '', password: '', nom: '', prenom: '', role: 'consultation' })
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [resetTarget, setResetTarget] = useState(null)
+  const [resetPw, setResetPw] = useState('')
+  const [resetPwConfirm, setResetPwConfirm] = useState('')
   const [smtpReady, setSmtpReady] = useState(false)
   const [emailInviteModal, setEmailInviteModal] = useState(false)
   const [emailInvite, setEmailInvite] = useState({ email: '', nom: '', prenom: '', role: 'consultation' })
@@ -217,6 +220,18 @@ function UsersSection() {
     catch (err) { toast(`Erreur : ${err.message}`, 'error') }
   }
 
+  function closeReset() { setResetTarget(null); setResetPw(''); setResetPwConfirm('') }
+
+  async function handleReset() {
+    if (!resetTarget) return
+    if (resetPw !== resetPwConfirm) { toast('Les mots de passe ne correspondent pas', 'error'); return }
+    try {
+      await api.patch(`/admin/users/${resetTarget.id}/reset-password`, { password: resetPw })
+      toast('Mot de passe réinitialisé')
+      closeReset()
+    } catch (err) { toast(`Erreur : ${err.message}`, 'error') }
+  }
+
   if (loading) return <div className="flex justify-center py-10"><Spinner /></div>
 
   return (
@@ -257,9 +272,14 @@ function UsersSection() {
                   <td className="px-3 py-2"><Badge variant={user.actif ? 'ok' : 'default'}>{user.actif ? 'Actif' : 'Inactif'}</Badge></td>
                   <td className="px-3 py-2">
                     {editable ? (
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(user)}>
-                        <Trash2 size={14} className="text-danger" />
-                      </Button>
+                      <div className="inline-flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => setResetTarget(user)} title="Réinitialiser le mot de passe">
+                          <KeyRound size={14} className="text-accent" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(user)} title="Supprimer">
+                          <Trash2 size={14} className="text-danger" />
+                        </Button>
+                      </div>
                     ) : (
                       <span className="text-xs text-text-muted" title="Action non autorisée">—</span>
                     )}
@@ -305,6 +325,20 @@ function UsersSection() {
               </div>
             </div>
           )}
+        </div>
+      </Modal>
+
+      <Modal open={!!resetTarget} onClose={closeReset} title="Réinitialiser le mot de passe" footer={
+        <><Button variant="ghost" onClick={closeReset}>Annuler</Button><Button onClick={handleReset}>Réinitialiser</Button></>
+      }>
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">Nouveau mot de passe temporaire pour <strong>{resetTarget ? `${resetTarget.prenom} ${resetTarget.nom}` : ''}</strong>.</p>
+          <div>
+            <Input label="Nouveau mot de passe" type="password" value={resetPw} onChange={e => setResetPw(e.target.value)} />
+            <p className="text-xs text-text-muted mt-1">{PASSWORD_RULE}</p>
+          </div>
+          <Input label="Confirmer le mot de passe" type="password" value={resetPwConfirm} onChange={e => setResetPwConfirm(e.target.value)} />
+          <p className="text-xs text-warning">L'utilisateur devra le changer à sa première connexion.</p>
         </div>
       </Modal>
 
