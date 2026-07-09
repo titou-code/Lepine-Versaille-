@@ -14,9 +14,9 @@ INSERT INTO categories_cnil (categorie, section, duree_archivage_mois, type_date
 ('Déclaration sociale nominative (DSN)', 'Rémunérations', 72, 'Date du document', true, 'Art. L243-16 CSS'),
 ('Accidents du travail — déclaration', 'Accidents du travail', 60, 'Date du document', true, 'Art. D4711-3 du code du travail'),
 ('Accidents du travail — vérifications et contrôles', 'Accidents du travail', 60, 'Date du document', true, 'Art. D4711-3 du code du travail'),
-('Mandats des représentants du personnel — nature et syndicat', 'Relations collectives', 72, 'Date fin de relation', true, 'Art. L2411-5 du code du travail'),
+('Mandats des représentants du personnel — nature et syndicat', 'Relations collectives', 72, 'Date du document', true, 'Art. L2411-5 du code du travail'),
 ('Affichage composition CSE', 'Relations collectives', NULL, 'Date fin de relation', true, 'Art. R2314-22 du code du travail'),
-('Congés spéciaux et heures de délégation', 'Relations collectives', 72, 'Date fin de relation', true, 'Art. 5 du RGPD'),
+('Congés spéciaux et heures de délégation', 'Relations collectives', 72, 'Date du document', true, 'Art. 5 du RGPD'),
 ('Élections professionnelles — fichiers supports (vote électronique)', 'Relations collectives', NULL, 'Date du document', false, 'Recommandation CNIL vote électronique'),
 ('Élections professionnelles — autres modalités (correspondance postale)', 'Relations collectives', 4, 'Date du document', true, 'Art. R2122-90 du code du travail'),
 ('Contentieux disciplinaire et prud''homal', 'Contentieux & Alertes', NULL, 'Date fin de relation', true, 'Art. 6 CEDH'),
@@ -49,7 +49,8 @@ INSERT INTO categories_cnil (categorie, section, duree_archivage_mois, type_date
 ('Autorisation d''autopsie et de prélèvement d''organe', 'Santé — Dossiers patients', 60, 'Date du document', true, 'Article 1233-1 CSP'),
 ('Documents spécifiques aux malades sous tutelle', 'Santé — Dossiers patients', NULL, 'Date du document', true, 'Circulaire AD 94-2 du 18 Janvier 1994'),
 ('Laboratoires — dossier patient', 'Santé — Dossiers patients', 180, 'Date du document', false, 'Recommandation référentiel CNIL santé / Art. R.1131-20 CSP'),
-('Laboratoires — analyses génétiques', 'Santé — Dossiers patients', 360, 'Date du document', false, 'Recommandation référentiel CNIL santé / Art. R.1131-20 CSP');
+('Laboratoires — analyses génétiques', 'Santé — Dossiers patients', 360, 'Date du document', false, 'Recommandation référentiel CNIL santé / Art. R.1131-20 CSP'),
+('Dossier administratif de l''usager (aide/maintien à domicile)', 'Santé — Dossiers patients', 60, 'Date du document', true, 'Code civil (prescription) / Recommandation CNIL');
 
 -- LOT D — type_precision pour catégories sans durée fixe
 
@@ -67,17 +68,9 @@ WHERE categorie = 'Contrôle de l''honorabilité';
 UPDATE categories_cnil SET type_precision = 'fin_habilitation', delai_apres_evenement_mois = 0
 WHERE categorie = 'Dossier professionnel';
 
--- Mandats représentants du personnel
-UPDATE categories_cnil SET type_precision = 'fin_mandat', delai_apres_evenement_mois = 6
-WHERE categorie = 'Mandats des représentants du personnel — nature et syndicat';
-
 -- CSE
 UPDATE categories_cnil SET type_precision = 'fin_mandat', delai_apres_evenement_mois = 0
 WHERE categorie = 'Affichage composition CSE';
-
--- Congés spéciaux
-UPDATE categories_cnil SET type_precision = 'fin_mandat', delai_apres_evenement_mois = 0
-WHERE categorie = 'Congés spéciaux et heures de délégation';
 
 -- Élections professionnelles vote électronique
 UPDATE categories_cnil SET type_precision = 'fin_procedure', delai_apres_evenement_mois = 0
