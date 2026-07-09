@@ -52,7 +52,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <ClientLogo className="h-20 w-auto" iconSize={64} />
+            <ClientLogo className="h-60 w-auto" iconSize={192} />
           </div>
           <h1 className="text-2xl font-bold text-text-primary">Archives</h1>
           <p className="text-sm text-text-secondary mt-1">Lépine Versailles</p>
