@@ -26,3 +26,7 @@ dist-ssr
 # Environnement & sauvegardes
 .env
 backups/
+
+# Fichiers visuels du client (ne doivent jamais partir sur GitHub)
+branding/
+Lepine-logo.*
