@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { Archive, UserPlus } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import { api } from '../lib/api'
 import { PASSWORD_RULE } from '../lib/utils'
+import ClientLogo from '../components/ClientLogo'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Spinner from '../components/ui/Spinner'
@@ -47,7 +48,7 @@ export default function InvitationAccept() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-4">
-            <Archive className="text-accent" size={32} />
+            <ClientLogo className="h-10 w-auto" iconSize={32} />
           </div>
           <h1 className="text-2xl font-bold text-text-primary">Archives</h1>
           <p className="text-sm text-text-secondary mt-1">Lépine Versailles</p>

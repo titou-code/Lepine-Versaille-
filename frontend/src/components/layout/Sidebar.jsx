@@ -3,10 +3,11 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useCompteurs } from '../../hooks/useCompteurs'
 import {
   LayoutDashboard, FilePlus, List, Search,
-  AlertTriangle, BookOpen, Settings, LogOut, Archive, Menu, X, ClipboardList
+  AlertTriangle, BookOpen, Settings, LogOut, Menu, X, ClipboardList
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '../../lib/utils'
+import ClientLogo from '../ClientLogo'
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['super_admin', 'admin'] },
@@ -54,7 +55,7 @@ export default function Sidebar() {
     <>
       <div className="p-5 border-b border-border">
         <div className="flex items-center gap-3">
-          <Archive className="text-accent" size={24} />
+          <ClientLogo className="h-6 w-auto" iconSize={24} />
           <div>
             <h1 className="text-base font-bold text-text-primary leading-tight">Archives</h1>
             <p className="text-xs text-text-muted">Lépine Versailles</p>
