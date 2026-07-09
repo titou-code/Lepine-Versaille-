@@ -55,7 +55,7 @@ export default function Sidebar() {
     <>
       <div className="p-5 border-b border-border">
         <div className="flex items-center gap-3">
-          <ClientLogo className="h-6 w-auto" iconSize={24} />
+          <ClientLogo className="h-12 w-auto" iconSize={48} />
           <div>
             <h1 className="text-base font-bold text-text-primary leading-tight">Archives</h1>
             <p className="text-xs text-text-muted">Lépine Versailles</p>

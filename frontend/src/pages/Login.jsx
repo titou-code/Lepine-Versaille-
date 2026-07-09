@@ -51,8 +51,8 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center p-4 bg-bg-primary">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-4">
-            <ClientLogo className="h-10 w-auto" iconSize={32} />
+          <div className="flex justify-center mb-4">
+            <ClientLogo className="h-20 w-auto" iconSize={64} />
           </div>
           <h1 className="text-2xl font-bold text-text-primary">Archives</h1>
           <p className="text-sm text-text-secondary mt-1">Lépine Versailles</p>
