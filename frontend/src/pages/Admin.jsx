@@ -18,6 +18,12 @@ import Spinner from '../components/ui/Spinner'
 
 const ROLE_HIERARCHY = { super_admin: 4, admin: 3, archiviste: 2, consultation: 1 }
 
+const AUDIT_ACTION_LABELS = {
+  connexion: 'Connexion',
+  echec_connexion: 'Échec de connexion',
+  deconnexion: 'Déconnexion',
+}
+
 function ConfirmDeleteModal({ open, onClose, onConfirm, label }) {
   return (
     <Modal open={open} onClose={onClose} title="Confirmer la suppression" footer={
@@ -504,7 +510,11 @@ function AuditSection() {
               <tr key={log.id} className="hover:bg-bg-hover transition-colors">
                 <td className="px-3 py-2 text-xs text-text-muted whitespace-nowrap">{new Date(log.created_at).toLocaleString('fr-FR')}</td>
                 <td className="px-3 py-2 text-xs">{log.prenom} {log.nom}</td>
-                <td className="px-3 py-2"><Badge variant={log.action === 'creation' ? 'ok' : log.action === 'suppression' ? 'danger' : 'default'}>{log.action}</Badge></td>
+                <td className="px-3 py-2"><Badge variant={
+                  log.action === 'creation' || log.action === 'connexion' ? 'ok'
+                  : log.action === 'suppression' || log.action === 'echec_connexion' ? 'danger'
+                  : 'default'
+                }>{AUDIT_ACTION_LABELS[log.action] || log.action}</Badge></td>
                 <td className="px-3 py-2 text-xs font-mono">{log.table_concernee}</td>
                 <td className="px-3 py-2 text-xs text-text-muted max-w-[200px] truncate">{log.details ? JSON.stringify(log.details) : '—'}</td>
               </tr>

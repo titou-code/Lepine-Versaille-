@@ -24,11 +24,17 @@ router.post('/login', authLimiter, async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' })
 
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1 AND actif = true AND deleted_at IS NULL', [email])
-    if (rows.length === 0) return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
+    if (rows.length === 0) {
+      await logAudit(null, 'echec_connexion', 'auth', null, { email, ip: req.ip })
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
+    }
 
     const user = rows[0]
     const valid = await bcrypt.compare(password, user.password_hash)
-    if (!valid) return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
+    if (!valid) {
+      await logAudit(null, 'echec_connexion', 'auth', null, { email, ip: req.ip })
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
+    }
 
     const sessionId = crypto.randomUUID()
     const accessToken = signAccessToken({ ...user, session_id: sessionId })
@@ -47,6 +53,8 @@ router.post('/login', authLimiter, async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/api/auth',
     })
+
+    await logAudit(user.id, 'connexion', 'auth', user.id, { email: user.email })
 
     res.json({
       token: accessToken,
@@ -86,7 +94,10 @@ router.post('/logout', async (req, res) => {
     const refreshToken = req.cookies?.refresh_token
     if (refreshToken) {
       const tokenHash = hashToken(refreshToken)
+      const { rows } = await pool.query('SELECT user_id FROM refresh_tokens WHERE token_hash = $1', [tokenHash])
       await pool.query('UPDATE refresh_tokens SET revoked = true WHERE token_hash = $1', [tokenHash])
+      const userId = rows[0]?.user_id || null
+      await logAudit(userId, 'deconnexion', 'auth', userId, null)
     }
     res.clearCookie('refresh_token', { path: '/api/auth' })
     res.json({ success: true })
