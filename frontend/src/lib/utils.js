@@ -18,7 +18,7 @@ export function isValidYear(y) {
 
 export function computeDateReference(typeDateRef, anneeDocument) {
   if (typeDateRef === 'Date du document' && isValidYear(anneeDocument)) {
-    return `${anneeDocument}-12-31`
+    return `${anneeDocument}-01-01`
   }
   return null
 }
