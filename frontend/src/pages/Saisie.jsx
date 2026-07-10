@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Save, Package, FileText } from 'lucide-react'
+import { Plus, Save, Package, FileText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useSalles } from '../hooks/useSalles'
 import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useCartons } from '../hooks/useCartons'
 import { useToast } from '../components/ui/Toast'
 import { refreshCompteurs } from '../hooks/useCompteurs'
-import { computeDateLimite, getPrefixFromSalle } from '../lib/utils'
+import { computeDateReference, computeDateLimite, getPrefixFromSalle } from '../lib/utils'
 import PageWrapper from '../components/layout/PageWrapper'
 import Header from '../components/layout/Header'
 import Card from '../components/ui/Card'
@@ -14,16 +14,7 @@ import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
 import Spinner from '../components/ui/Spinner'
-import FormDocument from '../components/FormDocument'
-
-const emptyDoc = () => ({
-  key: Date.now() + Math.random(),
-  theme: '', categorie_cnil_id: '', description: '', annee_document: '',
-  date_reference: '', manualDateRef: '',
-  useDatePrecise: false, date_precise: '',
-  date_evenement: '', duree_mois_saisie: '', procedure_close: false,
-  _themeManuel: false,
-})
+import BlocDocuments, { emptyBloc } from '../components/BlocDocuments'
 
 export default function Saisie() {
   const { user } = useAuth()
@@ -37,7 +28,7 @@ export default function Saisie() {
   const [etagereId, setEtagereId] = useState('')
   const [emplacement, setEmplacement] = useState('')
   const [numero, setNumero] = useState('')
-  const [documents, setDocuments] = useState([emptyDoc()])
+  const [blocs, setBlocs] = useState([emptyBloc()])
 
   const selectedSalle = salles.find(s => s.id === salleId)
   const etageres = selectedSalle?.etageres?.filter(e => e.actif) || []
@@ -50,44 +41,52 @@ export default function Saisie() {
     getNextNumero(prefix).then(n => setNumero(n || `${prefix}-001`))
   }, [selectedSalle])
 
-  function updateDoc(index, updatedDoc) {
-    setDocuments(prev => { const next = [...prev]; next[index] = updatedDoc; return next })
+  function updateBloc(index, updated) {
+    setBlocs(prev => prev.map((b, i) => (i === index ? updated : b)))
   }
-
-  function addDoc() { setDocuments(prev => [...prev, emptyDoc()]) }
-  function removeDoc(index) { if (documents.length > 1) setDocuments(prev => prev.filter((_, i) => i !== index)) }
+  function addBloc() { setBlocs(prev => [...prev, emptyBloc()]) }
+  function removeBloc(index) { if (blocs.length > 1) setBlocs(prev => prev.filter((_, i) => i !== index)) }
 
   async function handleSave() {
     if (!salleId || !numero) { toast('Veuillez remplir les informations du carton', 'error'); return }
-    const validDocs = documents.filter(d => d.theme && d.categorie_cnil_id)
-    if (validDocs.length === 0) { toast('Ajoutez au moins un document', 'error'); return }
+
+    const docsData = []
+    for (const bloc of blocs) {
+      if (!bloc.service || !bloc.categorie_cnil_id) continue
+      const cat = categories.find(c => c.id === bloc.categorie_cnil_id)
+      for (const ligne of bloc.lignes) {
+        const dateRef = cat
+          ? (cat.type_date_reference === 'Date du document'
+              ? computeDateReference('Date du document', ligne.annee_document)
+              : (ligne.manualDateRef || null))
+          : null
+        const dateLimite = dateRef && cat?.duree_archivage_mois ? computeDateLimite(dateRef, cat.duree_archivage_mois) : null
+        docsData.push({
+          theme: bloc.service, categorie_cnil_id: bloc.categorie_cnil_id,
+          description: ligne.description || null,
+          annee_document: ligne.annee_document ? parseInt(ligne.annee_document) : null,
+          type_date: cat?.type_date_reference || null, date_reference: dateRef,
+          date_limite_conservation: dateLimite, obligatoire: cat?.obligatoire ?? false,
+          fondement_juridique: cat?.fondement_juridique || null,
+          date_precise: ligne.useDatePrecise && ligne.date_precise ? ligne.date_precise : null,
+          date_evenement: ligne.date_evenement || null,
+          duree_mois_saisie: ligne.duree_mois_saisie ? parseInt(ligne.duree_mois_saisie) : null,
+          procedure_close: ligne.procedure_close || null, created_by: user.id,
+        })
+      }
+    }
+
+    if (docsData.length === 0) { toast('Ajoutez au moins un document valide', 'error'); return }
 
     const prefix = getPrefixFromSalle(selectedSalle.nom)
     const cartonData = { prefix, salle_id: salleId, etagere_id: etagereId || null, emplacement: emplacement || null, created_by: user.id }
-
-    const docsData = validDocs.map(doc => {
-      const cat = categories.find(c => c.id === doc.categorie_cnil_id)
-      const dateRef = doc.date_reference || null
-      const dateLimite = dateRef && cat?.duree_archivage_mois ? computeDateLimite(dateRef, cat.duree_archivage_mois) : null
-      return {
-        theme: doc.theme, categorie_cnil_id: doc.categorie_cnil_id,
-        description: doc.description || null, annee_document: doc.annee_document ? parseInt(doc.annee_document) : null,
-        type_date: cat?.type_date_reference || null, date_reference: dateRef,
-        date_limite_conservation: dateLimite, obligatoire: cat?.obligatoire ?? false,
-        fondement_juridique: cat?.fondement_juridique || null,
-        date_precise: doc.useDatePrecise && doc.date_precise ? doc.date_precise : null,
-        date_evenement: doc.date_evenement || null,
-        duree_mois_saisie: doc.duree_mois_saisie ? parseInt(doc.duree_mois_saisie) : null,
-        procedure_close: doc.procedure_close || null, created_by: user.id,
-      }
-    })
 
     const { data, error } = await createCartonWithDocuments(cartonData, docsData)
     if (error) {
       toast(`Erreur : ${error.message}`, 'error')
     } else {
       toast(`Carton ${data.numero} créé avec ${docsData.length} document(s)`)
-      setStep(1); setSalleId(''); setEtagereId(''); setEmplacement(''); setNumero(''); setDocuments([emptyDoc()])
+      setStep(1); setSalleId(''); setEtagereId(''); setEmplacement(''); setNumero(''); setBlocs([emptyBloc()])
       refreshCompteurs()
     }
   }
@@ -147,21 +146,21 @@ export default function Saisie() {
           </div>
 
           <div className="space-y-4">
-            {documents.map((doc, index) => (
-              <Card key={doc.key} className="relative">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm font-medium text-text-secondary">Document #{index + 1}</span>
-                  {documents.length > 1 && (
-                    <Button variant="ghost" size="sm" onClick={() => removeDoc(index)}><Trash2 size={14} className="text-danger" /></Button>
-                  )}
-                </div>
-                <FormDocument doc={doc} onChange={updated => updateDoc(index, updated)} categories={categories} />
-              </Card>
+            {blocs.map((bloc, index) => (
+              <BlocDocuments
+                key={bloc.key}
+                bloc={bloc}
+                index={index}
+                canRemove={blocs.length > 1}
+                categories={categories}
+                onChange={updated => updateBloc(index, updated)}
+                onRemove={() => removeBloc(index)}
+              />
             ))}
           </div>
 
           <div className="flex items-center justify-between mt-6">
-            <Button variant="outline" onClick={addDoc}><Plus size={16} /> Ajouter un document</Button>
+            <Button variant="outline" onClick={addBloc}><Plus size={16} /> Ajouter un bloc</Button>
             <Button onClick={handleSave} disabled={saving}>
               {saving ? <Spinner size="sm" /> : <><Save size={16} /> Enregistrer le carton</>}
             </Button>
