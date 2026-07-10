@@ -55,6 +55,9 @@ export default function Saisie() {
       if (!bloc.service || !bloc.categorie_cnil_id) continue
       const cat = categories.find(c => c.id === bloc.categorie_cnil_id)
       for (const ligne of bloc.lignes) {
+        const isEmpty = !ligne.description && !ligne.annee_document && !ligne.date_precise
+          && !ligne.date_evenement && !ligne.duree_mois_saisie && !ligne.manualDateRef
+        if (isEmpty) continue
         const dateRef = cat
           ? (cat.type_date_reference === 'Date du document'
               ? computeDateReference('Date du document', ligne.annee_document)
