@@ -54,9 +54,27 @@ export function cn(...classes) {
 }
 
 export const THEMES = [
-  'RH', 'Comptabilité', 'Médical', 'SSIAD', 'CCAS',
-  'ESA', 'EHPAD', 'Juridique', 'Sécurité', 'Autre'
+  'RH', 'Comptabilité', 'Médical', 'Juridique', 'Sécurité', 'Administratif', 'Social', 'Autre'
 ]
+
+// Correspondance service métier → sections CNIL (le champ `section` des catégories en base).
+// `null` = toutes les sections (filet de sécurité, utilisé par « Autre »).
+export const SERVICE_SECTIONS = {
+  'RH':            ['Recrutement', 'Gestion administrative', 'Rémunérations', 'Accidents du travail', 'Relations collectives', 'Contentieux & Alertes'],
+  'Comptabilité':  ['Rémunérations', 'Véhicules'],
+  'Médical':       ['Santé — Dossiers patients'],
+  'Juridique':     ['Contentieux & Alertes', 'Relations collectives'],
+  'Sécurité':      ['Sécurité'],
+  'Administratif': ['Gestion administrative', 'Santé — Dossiers patients', 'Véhicules'],
+  'Social':        ['Santé — Dossiers patients'],
+  'Autre':         null,
+}
+
+export function categoriesForService(service, allCategories) {
+  const sections = SERVICE_SECTIONS[service]
+  if (!sections) return allCategories
+  return allCategories.filter(c => sections.includes(c.section))
+}
 
 export const METHODES_DESTRUCTION = [
   'Broyage', 'Déchetterie', 'Confidentiel', 'Autre'
