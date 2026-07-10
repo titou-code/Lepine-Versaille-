@@ -18,7 +18,7 @@ import Spinner from '../components/ui/Spinner'
 
 export default function ADetruire() {
   const { user } = useAuth()
-  const { documents, loading, fetchDocuments } = useDocuments({})
+  const { documents, loading, fetchDocuments } = useDocuments({ all: 'true' })
   const { marquerDetruit, loading: destroying } = useDestructions()
   const toast = useToast()
 

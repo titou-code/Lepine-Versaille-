@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Download, Search, ArrowUpDown, Pencil, AlertTriangle, Plus } from 'lucide-react'
 import { useDocuments } from '../hooks/useDocuments'
 import { useSalles } from '../hooks/useSalles'
@@ -254,61 +254,60 @@ export default function Inventaire() {
   const [obligatoireFilter, setObligatoireFilter] = useState('')
   const [sortCol, setSortCol] = useState('created_at')
   const [sortDir, setSortDir] = useState('desc')
+  const [page, setPage] = useState(1)
   const [editDoc, setEditDoc] = useState(null)
   const [addToCarton, setAddToCarton] = useState(null)
+  const pageSize = 50
 
-  const { documents, loading, fetchDocuments } = useDocuments(filters)
+  const serverParams = {
+    ...filters,
+    statut: statusFilter,
+    obligatoire: obligatoireFilter,
+    sort: sortCol,
+    dir: sortDir,
+    page,
+    pageSize,
+  }
+
+  const { documents, total, loading, fetchDocuments } = useDocuments(serverParams)
   const { salles } = useSalles()
   const { categories } = useCategoriesCNIL()
   const { canWrite } = useAuth()
 
-  const filtered = useMemo(() => {
-    let result = documents.map(doc => ({
-      ...doc,
-      statut_calcule: computeStatut(doc.date_limite_conservation)
-    }))
-    if (statusFilter) result = result.filter(d => d.statut_calcule === statusFilter)
-    if (obligatoireFilter === 'true') result = result.filter(d => d.obligatoire)
-    if (obligatoireFilter === 'false') result = result.filter(d => !d.obligatoire)
+  const rows = documents.map(doc => ({ ...doc, statut_calcule: computeStatut(doc.date_limite_conservation) }))
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
-    result.sort((a, b) => {
-      let va = a[sortCol], vb = b[sortCol]
-      if (va == null) return 1
-      if (vb == null) return -1
-      if (typeof va === 'string') va = va.toLowerCase()
-      if (typeof vb === 'string') vb = vb.toLowerCase()
-      if (va < vb) return sortDir === 'asc' ? -1 : 1
-      if (va > vb) return sortDir === 'asc' ? 1 : -1
-      return 0
-    })
-    return result
-  }, [documents, statusFilter, obligatoireFilter, sortCol, sortDir])
-
-  const cartonIds = useMemo(() => {
-    const seen = new Set()
-    return filtered.reduce((acc, doc) => {
-      if (!seen.has(doc.carton_numero)) {
-        seen.add(doc.carton_numero)
-        acc.push(doc)
-      }
-      return acc
-    }, [])
-  }, [filtered])
+  function setFilter(patch) { setFilters(f => ({ ...f, ...patch })); setPage(1) }
+  function setStatus(v) { setStatusFilter(v); setPage(1) }
+  function setObligatoire(v) { setObligatoireFilter(v); setPage(1) }
 
   function toggleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortCol(col); setSortDir('asc') }
+    setPage(1)
   }
 
-  function exportCSV() {
+  async function exportCSV() {
+    // On exporte l'ensemble FILTRÉ (all=true), pas seulement la page affichée
+    const params = new URLSearchParams()
+    const exportFilters = { ...filters, statut: statusFilter, obligatoire: obligatoireFilter, sort: sortCol, dir: sortDir, all: 'true' }
+    for (const [k, v] of Object.entries(exportFilters)) {
+      if (v !== '' && v !== null && v !== undefined) params.set(k, v)
+    }
+    let data = []
+    try {
+      const res = await api.get(`/documents?${params}`)
+      data = res?.data || []
+    } catch { data = [] }
+
     const headers = ['N° Carton', 'Salle', 'Étagère', 'Emplacement', 'Service', 'Catégorie CNIL', 'Description', 'Année', 'Date limite', 'Statut', 'Obligatoire']
-    const rows = filtered.map(d => [
+    const csvRows = data.map(d => [
       d.carton_numero, d.salle_nom, d.etagere_nom || '', d.emplacement || '',
       d.theme, d.categorie || '', d.description || '', d.annee_document || '',
-      d.date_limite_conservation || '', d.statut_calcule || '',
+      d.date_limite_conservation || '', computeStatut(d.date_limite_conservation) || '',
       d.obligatoire ? 'Obligatoire' : 'Recommandé'
     ])
-    const csv = [headers, ...rows].map(r => r.map(c => `"${(c ?? '').toString().replace(/"/g, '""')}"`).join(',')).join('\n')
+    const csv = [headers, ...csvRows].map(r => r.map(c => `"${(c ?? '').toString().replace(/"/g, '""')}"`).join(',')).join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -333,27 +332,27 @@ export default function Inventaire() {
 
   return (
     <PageWrapper>
-      <Header title="Inventaire" subtitle={`${filtered.length} document(s)`} actions={
-        <Button variant="outline" onClick={exportCSV} disabled={filtered.length === 0}>
+      <Header title="Inventaire" subtitle={`${total} document(s)`} actions={
+        <Button variant="outline" onClick={exportCSV} disabled={total === 0}>
           <Download size={16} /> Export CSV
         </Button>
       } />
 
       <Card className="mb-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Select value={filters.salle_id} onChange={e => setFilters(f => ({ ...f, salle_id: e.target.value }))} placeholder="Toutes les salles" options={salles.map(s => ({ value: s.id, label: s.nom }))} />
-          <Select value={filters.theme} onChange={e => setFilters(f => ({ ...f, theme: e.target.value }))} placeholder="Tous les services" options={THEMES.map(t => ({ value: t, label: t }))} />
-          <Select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} placeholder="Tous les statuts" options={[
+          <Select value={filters.salle_id} onChange={e => setFilter({ salle_id: e.target.value })} placeholder="Toutes les salles" options={salles.map(s => ({ value: s.id, label: s.nom }))} />
+          <Select value={filters.theme} onChange={e => setFilter({ theme: e.target.value })} placeholder="Tous les services" options={THEMES.map(t => ({ value: t, label: t }))} />
+          <Select value={statusFilter} onChange={e => setStatus(e.target.value)} placeholder="Tous les statuts" options={[
             { value: 'ok', label: 'OK' }, { value: 'bientot', label: 'Bientôt' }, { value: 'a_detruire', label: 'À détruire' },
           ]} />
-          <Select value={obligatoireFilter} onChange={e => setObligatoireFilter(e.target.value)} placeholder="Oblig. / Reco." options={[
+          <Select value={obligatoireFilter} onChange={e => setObligatoire(e.target.value)} placeholder="Oblig. / Reco." options={[
             { value: 'true', label: 'Obligatoire' }, { value: 'false', label: 'Recommandé' },
           ]} />
-          <Input type="number" value={filters.annee} onChange={e => setFilters(f => ({ ...f, annee: e.target.value }))} placeholder="Année" min="1900" max="2099" />
+          <Input type="number" value={filters.annee} onChange={e => setFilter({ annee: e.target.value })} placeholder="Année" min="1900" max="2099" />
           <div className="relative">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
             <input className="w-full pl-9 pr-3 py-2 rounded-lg bg-bg-secondary border border-border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent text-sm"
-              value={filters.search} onChange={e => setFilters(f => ({ ...f, search: e.target.value }))} placeholder="Rechercher..." />
+              value={filters.search} onChange={e => setFilter({ search: e.target.value })} placeholder="Rechercher..." />
           </div>
         </div>
       </Card>
@@ -379,7 +378,7 @@ export default function Inventaire() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map(doc => (
+              {rows.map(doc => (
                 <tr key={doc.id} className={cn('hover:bg-bg-hover transition-colors', rowColor(doc.statut_calcule))}>
                   <td className="px-3 py-2.5 font-mono font-medium text-accent whitespace-nowrap">{doc.carton_numero}</td>
                   <td className="px-3 py-2.5 whitespace-nowrap">{doc.salle_nom}</td>
@@ -405,11 +404,21 @@ export default function Inventaire() {
                   )}
                 </tr>
               ))}
-              {filtered.length === 0 && (
+              {rows.length === 0 && (
                 <tr><td colSpan={canWrite ? 11 : 10} className="px-3 py-8 text-center text-text-muted">Aucun document trouvé</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && total > 0 && (
+        <div className="flex items-center justify-between mt-4">
+          <p className="text-sm text-text-muted">{total} résultat(s) — page {page} / {totalPages}</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Précédent</Button>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Suivant</Button>
+          </div>
         </div>
       )}
 

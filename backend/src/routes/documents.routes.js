@@ -22,13 +22,38 @@ router.get('/', authenticate, async (req, res) => {
       values.push(`%${req.query.search}%`)
       idx++
     }
+    if (req.query.obligatoire === 'true') conditions.push('obligatoire = true')
+    else if (req.query.obligatoire === 'false') conditions.push('obligatoire = false')
+    if (req.query.statut === 'a_detruire') conditions.push('date_limite_conservation IS NOT NULL AND date_limite_conservation < CURRENT_DATE')
+    else if (req.query.statut === 'bientot') conditions.push("date_limite_conservation IS NOT NULL AND date_limite_conservation >= CURRENT_DATE AND date_limite_conservation <= CURRENT_DATE + INTERVAL '30 days'")
+    else if (req.query.statut === 'ok') conditions.push("date_limite_conservation IS NOT NULL AND date_limite_conservation > CURRENT_DATE + INTERVAL '30 days'")
 
     const where = 'WHERE ' + conditions.join(' AND ')
-    const { rows } = await pool.query(
-      `SELECT * FROM v_documents_complets ${where} ORDER BY created_at DESC`,
-      values
-    )
-    res.json(rows)
+
+    const SORT_COLUMNS = {
+      carton_numero: 'carton_numero', salle_nom: 'salle_nom', etagere_nom: 'etagere_nom',
+      theme: 'theme', categorie: 'categorie', description: 'description',
+      annee_document: 'annee_document', date_limite_conservation: 'date_limite_conservation',
+      created_at: 'created_at',
+    }
+    const sortCol = SORT_COLUMNS[req.query.sort] || 'created_at'
+    const sortDir = req.query.dir === 'asc' ? 'ASC' : 'DESC'
+
+    const { rows: countRows } = await pool.query(`SELECT COUNT(*)::int AS total FROM v_documents_complets ${where}`, values)
+    const total = countRows[0].total
+
+    let dataSql = `SELECT * FROM v_documents_complets ${where} ORDER BY ${sortCol} ${sortDir} NULLS LAST`
+    let page = 1
+    let pageSize = total
+    if (req.query.all !== 'true') {
+      page = Math.max(1, parseInt(req.query.page) || 1)
+      pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize) || 50))
+      dataSql += ` LIMIT $${idx++} OFFSET $${idx++}`
+      values.push(pageSize, (page - 1) * pageSize)
+    }
+
+    const { rows } = await pool.query(dataSql, values)
+    res.json({ data: rows, total, page, pageSize })
   } catch (err) {
     console.error('[DOCUMENTS]', err)
     res.status(500).json({ error: 'Une erreur interne est survenue' })

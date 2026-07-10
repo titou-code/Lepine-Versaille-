@@ -24,7 +24,7 @@ function KPICard({ icon: Icon, label, value, color }) {
 }
 
 export default function Dashboard() {
-  const { documents, loading } = useDocuments({})
+  const { documents, loading } = useDocuments({ all: 'true' })
   const [backupAlert, setBackupAlert] = useState(false)
 
   useEffect(() => {

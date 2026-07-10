@@ -3,28 +3,30 @@ import { api } from '../lib/api'
 
 export function useDocuments(filters = {}) {
   const [documents, setDocuments] = useState([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+
+  const params = new URLSearchParams()
+  for (const [k, v] of Object.entries(filters)) {
+    if (v !== '' && v !== null && v !== undefined) params.set(k, v)
+  }
+  const queryString = params.toString()
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true)
-    const params = new URLSearchParams()
-    if (filters.salle_id) params.set('salle_id', filters.salle_id)
-    if (filters.theme) params.set('theme', filters.theme)
-    if (filters.annee) params.set('annee', filters.annee)
-    if (filters.carton_numero) params.set('carton_numero', filters.carton_numero)
-    if (filters.etagere_id) params.set('etagere_id', filters.etagere_id)
-    if (filters.search) params.set('search', filters.search)
-
     try {
-      const data = await api.get(`/documents?${params}`)
-      setDocuments(data || [])
+      const res = await api.get(`/documents?${queryString}`)
+      // Nouveau format paginé : { data, total, page, pageSize }
+      setDocuments(res?.data || [])
+      setTotal(res?.total || 0)
     } catch {
       setDocuments([])
+      setTotal(0)
     }
     setLoading(false)
-  }, [filters.salle_id, filters.theme, filters.annee, filters.carton_numero, filters.etagere_id, filters.search])
+  }, [queryString])
 
   useEffect(() => { fetchDocuments() }, [fetchDocuments])
 
-  return { documents, loading, fetchDocuments }
+  return { documents, total, loading, fetchDocuments }
 }
