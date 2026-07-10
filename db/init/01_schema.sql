@@ -3,6 +3,15 @@
 -- ============================================================
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- Wrapper IMMUTABLE autour de unaccent (unaccent seul n'est pas IMMUTABLE,
+-- ce qui empêche son usage dans une colonne générée ou un index).
+CREATE OR REPLACE FUNCTION f_unaccent(text)
+RETURNS text AS $$
+  SELECT public.unaccent('public.unaccent', $1)
+$$ LANGUAGE sql IMMUTABLE;
 
 -- 1. TABLE USERS
 CREATE TABLE users (
@@ -92,6 +101,13 @@ CREATE TABLE documents (
   updated_at timestamptz DEFAULT now()
 );
 
+-- Colonne de recherche normalisée (sans accent) sur les champs textuels du document + index GIN trigramme
+ALTER TABLE documents ADD COLUMN search_text text
+  GENERATED ALWAYS AS (
+    f_unaccent(coalesce(description,'') || ' ' || coalesce(theme,'') || ' ' || coalesce(fondement_juridique,''))
+  ) STORED;
+CREATE INDEX idx_documents_search_trgm ON documents USING gin (search_text gin_trgm_ops);
+
 CREATE TABLE destructions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id uuid REFERENCES documents(id) ON DELETE CASCADE,
@@ -170,6 +186,9 @@ CREATE INDEX idx_etageres_salle_id ON etageres(salle_id);
 CREATE INDEX idx_audit_log_table ON audit_log(table_concernee, enregistrement_id);
 CREATE INDEX idx_audit_log_user ON audit_log(user_id);
 CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+-- Index trigrammes sur les champs joints les plus recherchés (option a)
+CREATE INDEX idx_cartons_numero_trgm ON cartons USING gin (f_unaccent(numero) gin_trgm_ops);
+CREATE INDEX idx_categories_categorie_trgm ON categories_cnil USING gin (f_unaccent(categorie) gin_trgm_ops);
 
 -- 4. FONCTION NUMÉROTATION ATOMIQUE
 CREATE OR REPLACE FUNCTION generate_numero_carton(prefix text)
