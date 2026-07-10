@@ -6,10 +6,6 @@ const { calculerDateLimite } = require('../dateLimite')
 
 const router = Router()
 
-function removeAccents(str) {
-  return str.normalize('NFD').replace(/[̀-ͯ]/g, '')
-}
-
 router.get('/', authenticate, async (req, res) => {
   try {
     const conditions = ['a_completer = false', 'detruit = false']
@@ -180,67 +176,54 @@ router.put('/:id', authenticate, requireRole(['super_admin', 'admin', 'archivist
 })
 
 router.get('/recherche-intelligente', authenticate, async (req, res) => {
-  try {
-    const { q, annee } = req.query
-    if (!q || q.trim().length < 2) return res.json([])
+  const { q, annee } = req.query
+  if (!q || q.trim().length < 2) return res.json([])
+  const term = q.trim()
+  const anneeInt = /^\d+$/.test(String(annee || '')) ? parseInt(annee) : null
 
-    const { rows: allDocs } = await pool.query(
-      'SELECT * FROM v_documents_complets WHERE detruit = false'
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    // Seuil de similarité de mot ~0.3 (équivalent au comportement JS précédent), le temps de la transaction
+    await client.query('SET LOCAL pg_trgm.word_similarity_threshold = 0.3')
+
+    const { rows } = await client.query(
+      `SELECT v.*
+       FROM v_documents_complets v
+       JOIN documents d ON d.id = v.id
+       WHERE v.detruit = false
+         AND ($2::int IS NULL OR v.annee_document = $2::int)
+         AND (
+              d.search_text %> f_unaccent(lower($1))
+           OR f_unaccent(coalesce(v.carton_numero, '')) %> f_unaccent(lower($1))
+           OR f_unaccent(coalesce(v.categorie, '')) %> f_unaccent(lower($1))
+           OR f_unaccent(coalesce(v.salle_nom, '')) ILIKE '%' || f_unaccent(lower($1)) || '%'
+           OR f_unaccent(coalesce(v.etagere_nom, '')) ILIKE '%' || f_unaccent(lower($1)) || '%'
+           OR f_unaccent(coalesce(v.emplacement, '')) ILIKE '%' || f_unaccent(lower($1)) || '%'
+           OR f_unaccent(coalesce(v.categorie_section, '')) ILIKE '%' || f_unaccent(lower($1)) || '%'
+         )
+       ORDER BY GREATEST(
+              word_similarity(f_unaccent(lower($1)), coalesce(d.search_text, '')),
+              word_similarity(f_unaccent(lower($1)), f_unaccent(coalesce(v.carton_numero, ''))),
+              word_similarity(f_unaccent(lower($1)), f_unaccent(coalesce(v.categorie, ''))),
+              word_similarity(f_unaccent(lower($1)), f_unaccent(coalesce(v.salle_nom, ''))),
+              word_similarity(f_unaccent(lower($1)), f_unaccent(coalesce(v.etagere_nom, ''))),
+              word_similarity(f_unaccent(lower($1)), f_unaccent(coalesce(v.emplacement, ''))),
+              word_similarity(f_unaccent(lower($1)), f_unaccent(coalesce(v.categorie_section, '')))
+            ) DESC
+       LIMIT 50`,
+      [term, anneeInt]
     )
 
-    const words = removeAccents(q.toLowerCase()).split(/\s+/).filter(w => w.length >= 2)
-    if (words.length === 0) return res.json([])
-
-    let results = allDocs
-    if (annee) results = results.filter(d => d.annee_document === parseInt(annee))
-
-    const scored = results.map(doc => {
-      const fields = [
-        doc.description || '', doc.categorie || '', doc.theme || '',
-        doc.carton_numero || '', doc.salle_nom || '', doc.etagere_nom || '',
-        doc.emplacement || '', doc.fondement_juridique || '', doc.categorie_section || ''
-      ]
-      const haystack = removeAccents(fields.join(' ').toLowerCase())
-
-      let score = 0
-      for (const word of words) {
-        if (haystack.includes(word)) {
-          score += 10
-        } else {
-          let bestSim = 0
-          const haystackWords = haystack.split(/\s+/)
-          for (const hw of haystackWords) {
-            const sim = trigram(word, hw)
-            if (sim > bestSim) bestSim = sim
-          }
-          if (bestSim > 0.3) score += bestSim * 6
-        }
-      }
-      return { ...doc, _score: score }
-    })
-
-    const matched = scored.filter(d => d._score > 0).sort((a, b) => b._score - a._score).slice(0, 50)
-    res.json(matched)
+    await client.query('COMMIT')
+    res.json(rows)
   } catch (err) {
+    await client.query('ROLLBACK')
     console.error('[DOCUMENTS]', err)
     res.status(500).json({ error: 'Une erreur interne est survenue' })
+  } finally {
+    client.release()
   }
 })
-
-function trigram(a, b) {
-  if (!a || !b) return 0
-  const ta = trigramSet(a), tb = trigramSet(b)
-  let common = 0
-  for (const t of ta) { if (tb.has(t)) common++ }
-  const total = ta.size + tb.size - common
-  return total === 0 ? 0 : common / total
-}
-
-function trigramSet(s) {
-  const padded = `  ${s} `
-  const set = new Set()
-  for (let i = 0; i < padded.length - 2; i++) set.add(padded.slice(i, i + 3))
-  return set
-}
 
 module.exports = router
