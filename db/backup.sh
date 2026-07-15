@@ -7,17 +7,37 @@
 #    ne sont PAS touchés, l'échec est écrit dans le fichier d'état.
 #  - En cas de succès uniquement : rotation (> 30 jours) puis écriture
 #    du succès dans le fichier d'état.
-#  - Fichier d'état backups/status.json réécrit à chaque cycle.
+#  - Fichier d'état backups/status.json réécrit à chaque cycle, initialisé
+#    depuis l'existant au démarrage : last_success / last_error sont préservés
+#    d'un cycle et d'un redémarrage à l'autre, jamais écrasés par null.
 # ------------------------------------------------------------
 
 BACKUP_DIR=/backups
 STATUS_FILE="$BACKUP_DIR/status.json"
 MIN_SIZE=10240   # 10 Ko
 
-# État conservé d'un cycle à l'autre
+# Lit la valeur brute d'une clé (null ou "chaîne") dans le status.json ;
+# n'affiche rien si le fichier est absent, la clé introuvable ou la valeur malformée.
+read_status_value() {
+  key="$1"
+  [ -f "$STATUS_FILE" ] || return 0
+  raw=$(grep "\"$key\"" "$STATUS_FILE" 2>/dev/null | head -n1 | sed 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*,[[:space:]]*$//')
+  case "$raw" in
+    null)   printf 'null' ;;
+    \"*\")  printf '%s' "$raw" ;;
+    *)      : ;;
+  esac
+}
+
+# État initialisé depuis le status.json existant (préservé entre cycles ET redémarrages).
+# Règle : last_success n'est mis à jour QUE lors d'un succès, last_error/message QUE lors
+# d'un échec ; aucun des deux n'écrase jamais l'autre avec null.
 LAST_SUCCESS=null
 LAST_ERROR=null
 LAST_ERROR_MESSAGE=null
+v=$(read_status_value last_success);        [ -n "$v" ] && LAST_SUCCESS="$v"
+v=$(read_status_value last_error);          [ -n "$v" ] && LAST_ERROR="$v"
+v=$(read_status_value last_error_message);  [ -n "$v" ] && LAST_ERROR_MESSAGE="$v"
 
 write_status() {
 cat > "$STATUS_FILE" <<EOF
