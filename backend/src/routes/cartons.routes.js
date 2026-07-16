@@ -6,6 +6,10 @@ const { calculerDateLimite } = require('../dateLimite')
 
 const router = Router()
 
+function isUuid(v) {
+  return typeof v === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(v)
+}
+
 router.get('/numero/preview', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
   try {
     const { prefix } = req.query
@@ -29,6 +33,33 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
     if (!carton || !carton.prefix) {
       await client.query('ROLLBACK')
       return res.status(400).json({ error: 'Préfixe du carton requis' })
+    }
+
+    // — Validation des références et de l'année : 400 explicite au lieu d'un 500 de contrainte —
+    if (carton.salle_id) {
+      if (!isUuid(carton.salle_id)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Salle introuvable' }) }
+      const { rows } = await client.query('SELECT 1 FROM salles WHERE id = $1 AND deleted_at IS NULL', [carton.salle_id])
+      if (rows.length === 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Salle introuvable' }) }
+    }
+    if (carton.etagere_id) {
+      if (!isUuid(carton.etagere_id)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Étagère introuvable' }) }
+      const { rows } = await client.query('SELECT 1 FROM etageres WHERE id = $1 AND deleted_at IS NULL', [carton.etagere_id])
+      if (rows.length === 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Étagère introuvable' }) }
+    }
+    for (const doc of (Array.isArray(documents) ? documents : [])) {
+      if (doc.categorie_cnil_id) {
+        if (!isUuid(doc.categorie_cnil_id)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Catégorie CNIL introuvable' }) }
+        const { rows } = await client.query('SELECT 1 FROM categories_cnil WHERE id = $1', [doc.categorie_cnil_id])
+        if (rows.length === 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Catégorie CNIL introuvable' }) }
+      }
+      if (doc.annee_document !== undefined && doc.annee_document !== null && doc.annee_document !== '') {
+        let annee = NaN
+        if (typeof doc.annee_document === 'number') annee = doc.annee_document
+        else if (typeof doc.annee_document === 'string' && /^\d+$/.test(doc.annee_document.trim())) annee = parseInt(doc.annee_document, 10)
+        if (!Number.isInteger(annee) || annee < 1900 || annee > 2200) {
+          await client.query('ROLLBACK'); return res.status(400).json({ error: 'Année invalide (attendu : 1900–2200)' })
+        }
+      }
     }
 
     const { rows: numRows } = await client.query('SELECT generate_numero_carton($1) AS numero', [carton.prefix])
