@@ -14,7 +14,13 @@ router.get('/', authenticate, async (req, res) => {
 
     if (req.query.salle_id) { conditions.push(`salle_id = $${idx++}`); values.push(req.query.salle_id) }
     if (req.query.theme) { conditions.push(`theme = $${idx++}`); values.push(req.query.theme) }
-    if (req.query.annee) { conditions.push(`annee_document = $${idx++}`); values.push(parseInt(req.query.annee)) }
+    if (req.query.annee) {
+      const annee = parseInt(req.query.annee, 10)
+      if (Number.isInteger(annee) && annee >= 1900 && annee <= 2200) {
+        conditions.push(`annee_document = $${idx++}`); values.push(annee)
+      }
+      // sinon : filtre année invalide ignoré (pas d'erreur 500)
+    }
     if (req.query.etagere_id) { conditions.push(`etagere_id = $${idx++}`); values.push(req.query.etagere_id) }
     if (req.query.carton_numero) { conditions.push(`carton_numero ILIKE $${idx++}`); values.push(`%${req.query.carton_numero}%`) }
     if (req.query.search) {
