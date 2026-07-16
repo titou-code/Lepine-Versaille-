@@ -7,6 +7,7 @@ const { authenticate, requireRole, peutGererUtilisateur, hashToken, ROLE_HIERARC
 const { logAudit } = require('../audit')
 const { smtpReady, sendInvitation } = require('../mailer')
 const { validatePassword } = require('../passwordPolicy')
+const { handleDbConstraintError } = require('../dbError')
 
 const router = Router()
 
@@ -18,6 +19,7 @@ router.get('/users', authenticate, requireRole(['super_admin', 'admin']), async 
     res.json(rows)
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -42,6 +44,7 @@ router.post('/users', authenticate, requireRole(['super_admin', 'admin']), async
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Email déjà utilisé' })
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -87,6 +90,7 @@ router.patch('/users/:id', authenticate, requireRole(['super_admin', 'admin']), 
     res.json({ success: true })
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -110,6 +114,7 @@ router.post('/users/:id/delete', authenticate, requireRole(['super_admin', 'admi
     res.json({ success: true })
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -133,6 +138,7 @@ router.patch('/users/:id/reset-password', authenticate, requireRole(['super_admi
     res.json({ success: true })
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -145,6 +151,7 @@ router.get('/supprimes-recemment', authenticate, requireRole(['super_admin', 'ad
     res.json({ salles, etageres, users })
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -180,6 +187,7 @@ router.post('/restaurer', authenticate, requireRole(['super_admin', 'admin']), a
     res.json({ success: true })
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -202,6 +210,7 @@ router.get('/audit', authenticate, requireRole(['super_admin', 'admin']), async 
     res.json(rows)
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -220,6 +229,7 @@ router.get('/documents-detruits', authenticate, requireRole(['super_admin', 'adm
     res.json(rows)
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -280,6 +290,7 @@ router.post('/users/invite', authenticate, requireRole(['super_admin', 'admin'])
     }
   } catch (err) {
     console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })

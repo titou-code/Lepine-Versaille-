@@ -2,6 +2,7 @@ const { Router } = require('express')
 const pool = require('../db')
 const { authenticate, requireRole } = require('../middleware/auth')
 const { logAudit } = require('../audit')
+const { handleDbConstraintError } = require('../dbError')
 
 const router = Router()
 
@@ -17,6 +18,7 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
     res.status(201).json(rows[0])
   } catch (err) {
     console.error('[DESTRUCTIONS]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })

@@ -3,6 +3,7 @@ const pool = require('../db')
 const { authenticate, requireRole } = require('../middleware/auth')
 const { logAudit } = require('../audit')
 const { calculerDateLimite } = require('../dateLimite')
+const { handleDbConstraintError } = require('../dbError')
 
 const router = Router()
 
@@ -20,6 +21,7 @@ router.get('/numero/preview', authenticate, requireRole(['super_admin', 'admin',
     res.json({ numero })
   } catch (err) {
     console.error('[CARTONS]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -114,6 +116,7 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
   } catch (err) {
     await client.query('ROLLBACK')
     console.error('[CARTONS]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   } finally {
     client.release()
@@ -153,6 +156,7 @@ router.post('/:id/documents', authenticate, requireRole(['super_admin', 'admin',
     res.status(201).json({ id: docRows[0].id, date_limite_conservation: dateLimite, a_completer: aCompleter })
   } catch (err) {
     console.error('[CARTONS]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
@@ -167,6 +171,7 @@ router.get('/:id/dernier-document', authenticate, async (req, res) => {
     res.json(rows[0] || null)
   } catch (err) {
     console.error('[CARTONS]', err)
+    if (handleDbConstraintError(err, res)) return
     res.status(500).json({ error: 'Une erreur interne est survenue' })
   }
 })
