@@ -1,6 +1,7 @@
 const express = require('express')
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
+const helmet = require('helmet')
 
 const WEAK_JWT_SECRETS = ['change-me-in-production', 'dev-secret-change-me', 'dev-secret']
 if (!process.env.JWT_SECRET || WEAK_JWT_SECRETS.includes(process.env.JWT_SECRET) || process.env.JWT_SECRET.length < 32) {
@@ -23,8 +24,18 @@ const notificationsRoutes = require('./routes/notifications.routes')
 const app = express()
 const PORT = process.env.PORT || 4000
 
-app.use(cors({ origin: true, credentials: true }))
-app.use(express.json())
+app.use(helmet())
+
+// CORS restreint : n'autorise que la/les origine(s) de CORS_ORIGIN (séparées par des virgules).
+// Absente → origin:false (aucune origine cross-site autorisée), sûr car le frontend est servi
+// en même origine par nginx (proxy /api). En prod, définir CORS_ORIGIN = URL du client si l'API
+// est appelée depuis une autre origine.
+const corsOrigin = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : false
+app.use(cors({ origin: corsOrigin, credentials: true }))
+
+app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 
 app.use('/api/auth', authRoutes)
