@@ -35,6 +35,14 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
       return res.status(400).json({ error: 'Préfixe du carton requis' })
     }
 
+    // — Un carton doit contenir au moins un document exploitable (ni description, ni catégorie, ni année → vide) —
+    const docsList = Array.isArray(documents) ? documents : []
+    const aAuMoinsUnDoc = docsList.some(d => d && (d.description || d.categorie_cnil_id || d.annee_document))
+    if (!aAuMoinsUnDoc) {
+      await client.query('ROLLBACK')
+      return res.status(400).json({ error: 'Un carton doit contenir au moins un document' })
+    }
+
     // — Validation des références et de l'année : 400 explicite au lieu d'un 500 de contrainte —
     if (carton.salle_id) {
       if (!isUuid(carton.salle_id)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Salle introuvable' }) }
