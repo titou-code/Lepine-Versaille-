@@ -27,6 +27,7 @@ dist-ssr
 .env
 backups/
 
-# Fichiers visuels du client (ne doivent jamais partir sur GitHub)
-branding/
+# Fichiers visuels du client (ne doivent jamais partir sur GitHub) — sauf le README de convention
+branding/*
+!branding/README.md
 Lepine-logo.*
