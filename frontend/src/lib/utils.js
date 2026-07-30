@@ -54,7 +54,7 @@ export function cn(...classes) {
 }
 
 export const THEMES = [
-  'RH', 'Comptabilité', 'Médical', 'Juridique', 'Sécurité', 'Administratif', 'Social', 'Autre'
+  'RH', 'Comptabilité', 'Médical', 'Juridique', 'Sécurité', 'Administratif', 'Social', 'CRT', 'SAD mixte', 'Autre'
 ]
 
 // Correspondance service métier → sections CNIL (le champ `section` des catégories en base).
@@ -67,6 +67,8 @@ export const SERVICE_SECTIONS = {
   'Sécurité':      ['Sécurité'],
   'Administratif': ['Gestion administrative', 'Santé — Dossiers patients', 'Véhicules'],
   'Social':        ['Santé — Dossiers patients'],
+  'CRT':           null,
+  'SAD mixte':     null,
   'Autre':         null,
 }
 
