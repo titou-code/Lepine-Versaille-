@@ -15,6 +15,7 @@ import Select from '../components/ui/Select'
 import Modal from '../components/ui/Modal'
 import Badge from '../components/ui/Badge'
 import Spinner from '../components/ui/Spinner'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 const ROLE_HIERARCHY = { super_admin: 4, admin: 3, archiviste: 2, consultation: 1 }
 
@@ -26,17 +27,17 @@ const AUDIT_ACTION_LABELS = {
 
 function ConfirmDeleteModal({ open, onClose, onConfirm, label }) {
   return (
-    <Modal open={open} onClose={onClose} title="Confirmer la suppression" footer={
-      <>
-        <Button variant="ghost" onClick={onClose}>Annuler</Button>
-        <Button variant="danger" onClick={onConfirm}><Trash2 size={14} /> Supprimer</Button>
-      </>
-    }>
-      <p className="text-sm text-text-secondary">
-        Êtes-vous sûr de vouloir supprimer <strong>{label}</strong> ?
-        L'élément sera déplacé dans la corbeille pendant 14 jours avant suppression définitive.
-      </p>
-    </Modal>
+    <ConfirmDialog
+      open={open}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      message={
+        <>
+          Êtes-vous sûr de vouloir supprimer <strong>{label}</strong> ?
+          L'élément sera déplacé dans la corbeille pendant 14 jours avant suppression définitive.
+        </>
+      }
+    />
   )
 }
 
