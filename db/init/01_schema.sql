@@ -118,6 +118,20 @@ CREATE TABLE destructions (
   created_at timestamptz DEFAULT now()
 );
 
+-- Demandes de destruction (circuit de validation) : proposées par un archiviste,
+-- validées ou refusées par un admin / super_admin.
+CREATE TABLE demandes_destruction (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id uuid REFERENCES documents(id) ON DELETE CASCADE,
+  demande_par uuid REFERENCES users(id),
+  statut text NOT NULL DEFAULT 'en_attente' CHECK (statut IN ('en_attente','validee','refusee')),
+  motif text,
+  valide_par uuid REFERENCES users(id),
+  date_demande timestamptz DEFAULT now(),
+  date_traitement timestamptz
+);
+CREATE INDEX idx_demandes_destruction_attente ON demandes_destruction(statut) WHERE statut = 'en_attente';
+
 -- LOT F — COMPTEURS ATOMIQUES
 CREATE TABLE compteurs_numerotation (
   prefixe text PRIMARY KEY,

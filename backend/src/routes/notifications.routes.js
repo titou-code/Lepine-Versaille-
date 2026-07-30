@@ -25,7 +25,16 @@ router.get('/compteurs', authenticate, async (req, res) => {
       else if (dl <= seuil) bientot++
     }
 
-    res.json({ a_completer, a_detruire, bientot })
+    // Compteur des demandes de destruction en attente — pertinent uniquement pour admin/super_admin.
+    let demandes_destruction = 0
+    if (req.user.role === 'super_admin' || req.user.role === 'admin') {
+      const { rows: ddRows } = await pool.query(
+        "SELECT COUNT(*)::int AS n FROM demandes_destruction WHERE statut = 'en_attente'"
+      )
+      demandes_destruction = ddRows[0].n
+    }
+
+    res.json({ a_completer, a_detruire, bientot, demandes_destruction })
   } catch (err) {
     console.error('[NOTIFICATIONS]', err)
     res.status(500).json({ error: 'Une erreur interne est survenue' })

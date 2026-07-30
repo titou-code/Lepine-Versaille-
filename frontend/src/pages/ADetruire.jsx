@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { AlertTriangle, AlertCircle, Trash2, MapPin, Package, Scale } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { AlertTriangle, AlertCircle, Trash2, MapPin, Package, Scale, Clock, User, Check, X } from 'lucide-react'
 import { useDocuments } from '../hooks/useDocuments'
 import { useDestructions } from '../hooks/useDestructions'
 import { useAuth } from '../contexts/AuthContext'
@@ -15,17 +15,35 @@ import Select from '../components/ui/Select'
 import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import Spinner from '../components/ui/Spinner'
+import ConfirmDialog from '../components/ConfirmDialog'
 
 export default function ADetruire() {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const { documents, loading, fetchDocuments } = useDocuments({ all: 'true' })
-  const { marquerDetruit, loading: destroying } = useDestructions()
+  const { marquerDetruit, proposerDestruction, getDemandes, validerDemande, refuserDemande, loading: busy } = useDestructions()
   const toast = useToast()
 
+  // Destruction directe (admin / super_admin)
   const [modal, setModal] = useState(null)
   const [destructionDate, setDestructionDate] = useState(new Date().toISOString().split('T')[0])
   const [methode, setMethode] = useState('')
   const [notes, setNotes] = useState('')
+
+  // Proposition (archiviste)
+  const [proposeTarget, setProposeTarget] = useState(null)
+  const [proposedIds, setProposedIds] = useState(() => new Set())
+
+  // Demandes en attente (admin / super_admin)
+  const [demandes, setDemandes] = useState([])
+  const [validateTarget, setValidateTarget] = useState(null)
+
+  const loadDemandes = useCallback(async () => {
+    if (!isAdmin) return
+    try { setDemandes((await getDemandes()) || []) } catch { setDemandes([]) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin])
+
+  useEffect(() => { loadDemandes() }, [loadDemandes])
 
   const { aDetruire, bientot } = useMemo(() => {
     const withStatut = documents.map(d => ({
@@ -60,6 +78,45 @@ export default function ADetruire() {
       toast('Document marqué comme détruit')
       setModal(null)
       fetchDocuments()
+      refreshCompteurs()
+    }
+  }
+
+  async function handlePropose() {
+    if (!proposeTarget) return
+    const target = proposeTarget
+    const { error } = await proposerDestruction({ document_id: target.id })
+    if (error) {
+      toast(`Erreur : ${error.message}`, 'error')
+    } else {
+      toast('Demande envoyée, en attente de validation par un administrateur')
+      setProposedIds(prev => new Set(prev).add(target.id))
+      refreshCompteurs()
+    }
+    setProposeTarget(null)
+  }
+
+  async function handleValidate() {
+    if (!validateTarget) return
+    const { error } = await validerDemande(validateTarget.id)
+    if (error) {
+      toast(`Erreur : ${error.message}`, 'error')
+    } else {
+      toast('Destruction validée — document détruit')
+      fetchDocuments()
+      loadDemandes()
+      refreshCompteurs()
+    }
+    setValidateTarget(null)
+  }
+
+  async function handleRefuse(id) {
+    const { error } = await refuserDemande(id)
+    if (error) {
+      toast(`Erreur : ${error.message}`, 'error')
+    } else {
+      toast('Demande refusée')
+      loadDemandes()
       refreshCompteurs()
     }
   }
@@ -111,9 +168,19 @@ export default function ADetruire() {
               {doc.emplacement && <div className="text-text-muted pl-5">{doc.emplacement}</div>}
               <div className="flex items-center gap-2"><Package size={14} className="text-accent" /> <span className="font-mono font-bold text-accent">{doc.carton_numero}</span></div>
             </div>
-            <Button variant="danger" onClick={() => openModal(doc)} className="w-full">
-              <Trash2 size={14} /> Marquer comme détruit
-            </Button>
+            {isAdmin ? (
+              <Button variant="danger" onClick={() => openModal(doc)} className="w-full">
+                <Trash2 size={14} /> Marquer comme détruit
+              </Button>
+            ) : proposedIds.has(doc.id) ? (
+              <Button variant="outline" disabled className="w-full">
+                <Clock size={14} /> Demande envoyée
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={() => setProposeTarget(doc)} className="w-full">
+                <Trash2 size={14} /> Proposer la destruction
+              </Button>
+            )}
           </div>
         </div>
       </Card>
@@ -125,6 +192,49 @@ export default function ADetruire() {
   return (
     <PageWrapper>
       <Header title="Documents à détruire" subtitle={`${aDetruire.length} à détruire · ${bientot.length} bientôt`} />
+
+      {isAdmin && demandes.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Clock className="text-accent" size={20} />
+            <h2 className="text-lg font-semibold">Demandes en attente ({demandes.length})</h2>
+          </div>
+          <div className="space-y-3">
+            {demandes.map(d => (
+              <Card key={d.id}>
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant={d.obligatoire ? 'obligatoire' : 'recommande'} />
+                      <span className="text-sm text-text-muted">{d.theme}</span>
+                    </div>
+                    <h3 className="font-medium">{d.categorie}</h3>
+                    {d.description && <p className="text-sm text-text-secondary">{d.description}</p>}
+                    <div className="flex flex-wrap gap-4 text-xs text-text-muted mt-2">
+                      <span className="flex items-center gap-1"><Package size={12} className="text-accent" /> <span className="font-mono text-accent">{d.carton_numero}</span></span>
+                      <span className="flex items-center gap-1"><MapPin size={12} className="text-accent" /> {d.salle_nom}{d.etagere_nom ? ` — ${d.etagere_nom}` : ''}</span>
+                      <span>Année : {d.annee_document || '—'}</span>
+                      <span>Limite : {formatDate(d.date_limite_conservation)}</span>
+                    </div>
+                    <p className="text-xs text-text-muted mt-2 flex items-center gap-1">
+                      <User size={12} /> Demandé par {d.demandeur_prenom} {d.demandeur_nom} · {formatDate(d.date_demande)}
+                    </p>
+                    {d.motif && <p className="text-xs text-text-secondary mt-1">Motif : {d.motif}</p>}
+                  </div>
+                  <div className="flex gap-2 lg:flex-col lg:w-52">
+                    <Button variant="danger" onClick={() => setValidateTarget(d)} className="flex-1">
+                      <Check size={14} /> Valider la destruction
+                    </Button>
+                    <Button variant="outline" onClick={() => handleRefuse(d.id)} disabled={busy} className="flex-1">
+                      <X size={14} /> Refuser
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {aDetruire.length > 0 && (
         <div className="mb-8">
@@ -157,6 +267,7 @@ export default function ADetruire() {
         </div>
       )}
 
+      {/* Destruction directe (admin / super_admin) */}
       <Modal
         open={!!modal}
         onClose={() => setModal(null)}
@@ -164,8 +275,8 @@ export default function ADetruire() {
         footer={
           <>
             <Button variant="ghost" onClick={() => setModal(null)}>Annuler</Button>
-            <Button variant="danger" onClick={handleDestruction} disabled={destroying}>
-              {destroying ? <Spinner size="sm" /> : <><Trash2 size={14} /> Confirmer</>}
+            <Button variant="danger" onClick={handleDestruction} disabled={busy}>
+              {busy ? <Spinner size="sm" /> : <><Trash2 size={14} /> Confirmer</>}
             </Button>
           </>
         }
@@ -199,6 +310,44 @@ export default function ADetruire() {
           </div>
         )}
       </Modal>
+
+      {/* Proposition de destruction (archiviste) */}
+      <ConfirmDialog
+        open={!!proposeTarget}
+        onClose={() => setProposeTarget(null)}
+        onConfirm={handlePropose}
+        loading={busy}
+        title="Proposer la destruction"
+        confirmLabel="Proposer"
+        message={
+          proposeTarget && (
+            <>
+              Proposer la destruction de <strong>{proposeTarget.categorie}</strong>
+              {proposeTarget.carton_numero ? <> (carton {proposeTarget.carton_numero})</> : null} ?
+              La demande sera transmise à un administrateur pour validation. Le document n'est pas détruit tant qu'elle n'est pas validée.
+            </>
+          )
+        }
+      />
+
+      {/* Validation d'une demande (admin / super_admin) — action destructrice */}
+      <ConfirmDialog
+        open={!!validateTarget}
+        onClose={() => setValidateTarget(null)}
+        onConfirm={handleValidate}
+        loading={busy}
+        title="Valider la destruction"
+        confirmLabel="Valider la destruction"
+        message={
+          validateTarget && (
+            <>
+              Valider la destruction de <strong>{validateTarget.categorie}</strong>
+              {validateTarget.carton_numero ? <> (carton {validateTarget.carton_numero})</> : null} ?
+              Cette action est irréversible : le document sera détruit et la destruction tracée.
+            </>
+          )
+        }
+      />
     </PageWrapper>
   )
 }

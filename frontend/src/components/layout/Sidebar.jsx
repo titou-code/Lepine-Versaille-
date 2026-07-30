@@ -15,7 +15,7 @@ const navItems = [
   { to: '/inventaire', icon: List, label: 'Inventaire', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },
   { to: '/recherche', icon: Search, label: 'Recherche', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },
   { to: '/a-completer', icon: ClipboardList, label: 'À compléter', roles: ['super_admin', 'admin', 'archiviste'], notifKey: 'a_completer' },
-  { to: '/a-detruire', icon: AlertTriangle, label: 'À détruire', roles: ['super_admin', 'admin', 'archiviste'], notifKey: 'a_detruire', notifKeySecondary: 'bientot' },
+  { to: '/a-detruire', icon: AlertTriangle, label: 'À détruire', roles: ['super_admin', 'admin', 'archiviste'], notifKey: 'a_detruire', notifKeySecondary: 'bientot', notifKeyAdmin: 'demandes_destruction' },
   { to: '/referentiel', icon: BookOpen, label: 'Référentiel CNIL', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },
   { to: '/admin', icon: Settings, label: 'Administration', roles: ['super_admin', 'admin'] },
 ]
@@ -36,17 +36,20 @@ function NotifBadge({ count, pulse, variant = 'danger' }) {
 }
 
 export default function Sidebar() {
-  const { profile, role, signOut } = useAuth()
+  const { profile, role, isAdmin, signOut } = useAuth()
   const { compteurs } = useCompteurs()
   const [mobileOpen, setMobileOpen] = useState(false)
   const filtered = navItems.filter(item => item.roles.includes(role))
 
   function renderNotifs(item) {
-    if (!item.notifKey) return null
-    const primary = compteurs[item.notifKey] || 0
+    if (!item.notifKey && !item.notifKeyAdmin) return null
+    const primary = item.notifKey ? (compteurs[item.notifKey] || 0) : 0
+    // Compteur réservé aux admins (ex. demandes en attente à valider).
+    const admin = (item.notifKeyAdmin && isAdmin) ? (compteurs[item.notifKeyAdmin] || 0) : 0
     const secondary = item.notifKeySecondary ? (compteurs[item.notifKeySecondary] || 0) : 0
+    const danger = primary + admin
 
-    if (primary > 0) return <NotifBadge count={primary} pulse />
+    if (danger > 0) return <NotifBadge count={danger} pulse />
     if (secondary > 0) return <NotifBadge count={secondary} variant="warning" />
     return null
   }
