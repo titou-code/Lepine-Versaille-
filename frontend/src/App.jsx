@@ -8,6 +8,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Saisie from './pages/Saisie'
 import Inventaire from './pages/Inventaire'
+import Cartons from './pages/Cartons'
 import Recherche from './pages/Recherche'
 import ADetruire from './pages/ADetruire'
 import Referentiel from './pages/Referentiel'
@@ -78,6 +79,9 @@ function AppRoutes() {
         } />
         <Route path="/inventaire" element={
           <ProtectedRoute roles={['super_admin', 'admin', 'archiviste', 'consultation']}><Inventaire /></ProtectedRoute>
+        } />
+        <Route path="/cartons" element={
+          <ProtectedRoute roles={['super_admin', 'admin', 'archiviste']}><Cartons /></ProtectedRoute>
         } />
         <Route path="/recherche" element={
           <ProtectedRoute roles={['super_admin', 'admin', 'archiviste', 'consultation']}><Recherche /></ProtectedRoute>

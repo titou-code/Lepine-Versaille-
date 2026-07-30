@@ -26,6 +26,63 @@ router.get('/numero/preview', authenticate, requireRole(['super_admin', 'admin',
   }
 })
 
+// GET /cartons — liste des cartons avec le nombre de documents actifs (non détruits).
+// Filtres optionnels : salle_id, etagere_id, max_docs (cartons ayant au plus N documents actifs).
+// Tri (sort/dir) et pagination (page/pageSize, ou all=true) alignés sur l'inventaire.
+router.get('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
+  try {
+    const conditions = []
+    const values = []
+    let idx = 1
+    if (req.query.salle_id) { conditions.push(`c.salle_id = $${idx++}`); values.push(req.query.salle_id) }
+    if (req.query.etagere_id) { conditions.push(`c.etagere_id = $${idx++}`); values.push(req.query.etagere_id) }
+    if (req.query.max_docs !== undefined && req.query.max_docs !== '') {
+      const maxDocs = parseInt(req.query.max_docs, 10)
+      if (Number.isInteger(maxDocs)) { conditions.push(`COALESCE(d.n, 0) <= $${idx++}`); values.push(maxDocs) }
+    }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : ''
+
+    const base = `
+      FROM cartons c
+      LEFT JOIN salles s ON c.salle_id = s.id
+      LEFT JOIN etageres e ON c.etagere_id = e.id
+      LEFT JOIN (SELECT carton_id, COUNT(*)::int AS n FROM documents WHERE detruit = false GROUP BY carton_id) d ON d.carton_id = c.id
+      ${where}`
+
+    const { rows: countRows } = await pool.query(`SELECT COUNT(*)::int AS total ${base}`, values)
+    const total = countRows[0].total
+
+    const SORT_COLUMNS = {
+      numero: 'c.numero', salle_nom: 's.nom', etagere_nom: 'e.nom',
+      nb_documents_actifs: 'COALESCE(d.n, 0)', created_at: 'c.created_at',
+    }
+    const sortCol = SORT_COLUMNS[req.query.sort] || 'c.numero'
+    const sortDir = req.query.dir === 'desc' ? 'DESC' : 'ASC'
+
+    let dataSql = `SELECT c.id, c.numero, c.emplacement, c.created_at,
+        c.salle_id, s.nom AS salle_nom, c.etagere_id, e.nom AS etagere_nom,
+        COALESCE(d.n, 0) AS nb_documents_actifs
+      ${base}
+      ORDER BY ${sortCol} ${sortDir} NULLS LAST`
+
+    let page = 1
+    let pageSize = total
+    if (req.query.all !== 'true') {
+      page = Math.max(1, parseInt(req.query.page) || 1)
+      pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize) || 50))
+      dataSql += ` LIMIT $${idx++} OFFSET $${idx++}`
+      values.push(pageSize, (page - 1) * pageSize)
+    }
+
+    const { rows } = await pool.query(dataSql, values)
+    res.json({ data: rows, total, page, pageSize })
+  } catch (err) {
+    console.error('[CARTONS]', err)
+    if (handleDbConstraintError(err, res)) return
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
+  }
+})
+
 router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
   const client = await pool.connect()
   try {
@@ -130,6 +187,18 @@ router.post('/:id/documents', authenticate, requireRole(['super_admin', 'admin',
 
     if (!doc.theme || !doc.categorie_cnil_id) {
       return res.status(400).json({ error: 'Service et catégorie requis' })
+    }
+    // Validation alignée sur la création de carton (400 explicites, pas de 500).
+    if (!isUuid(doc.categorie_cnil_id)) {
+      return res.status(400).json({ error: 'Catégorie CNIL introuvable' })
+    }
+    if (doc.annee_document !== undefined && doc.annee_document !== null && doc.annee_document !== '') {
+      let annee = NaN
+      if (typeof doc.annee_document === 'number') annee = doc.annee_document
+      else if (typeof doc.annee_document === 'string' && /^\d+$/.test(doc.annee_document.trim())) annee = parseInt(doc.annee_document, 10)
+      if (!Number.isInteger(annee) || annee < 1900 || annee > 2200) {
+        return res.status(400).json({ error: 'Année invalide (attendu : 1900–2200)' })
+      }
     }
 
     const { rows: catRows } = await pool.query('SELECT * FROM categories_cnil WHERE id = $1', [doc.categorie_cnil_id])

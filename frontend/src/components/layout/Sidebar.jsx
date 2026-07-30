@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useCompteurs } from '../../hooks/useCompteurs'
 import {
   LayoutDashboard, FilePlus, List, Search,
-  AlertTriangle, BookOpen, Settings, LogOut, Menu, X, ClipboardList
+  AlertTriangle, BookOpen, Settings, LogOut, Menu, X, ClipboardList, Boxes
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '../../lib/utils'
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord', roles: ['super_admin', 'admin'] },
   { to: '/saisie', icon: FilePlus, label: 'Saisie', roles: ['super_admin', 'admin', 'archiviste'] },
   { to: '/inventaire', icon: List, label: 'Inventaire', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },
+  { to: '/cartons', icon: Boxes, label: 'Cartons', roles: ['super_admin', 'admin', 'archiviste'] },
   { to: '/recherche', icon: Search, label: 'Recherche', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },
   { to: '/a-completer', icon: ClipboardList, label: 'À compléter', roles: ['super_admin', 'admin', 'archiviste'], notifKey: 'a_completer' },
   { to: '/a-detruire', icon: AlertTriangle, label: 'À détruire', roles: ['super_admin', 'admin', 'archiviste'], notifKey: 'a_detruire', notifKeySecondary: 'bientot', notifKeyAdmin: 'demandes_destruction' },
