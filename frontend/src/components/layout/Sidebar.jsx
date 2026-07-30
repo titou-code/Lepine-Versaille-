@@ -10,7 +10,7 @@ import { cn } from '../../lib/utils'
 import ClientLogo from '../ClientLogo'
 
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', roles: ['super_admin', 'admin'] },
+  { to: '/dashboard', icon: LayoutDashboard, label: 'Tableau de bord', roles: ['super_admin', 'admin'] },
   { to: '/saisie', icon: FilePlus, label: 'Saisie', roles: ['super_admin', 'admin', 'archiviste'] },
   { to: '/inventaire', icon: List, label: 'Inventaire', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },
   { to: '/recherche', icon: Search, label: 'Recherche', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },

@@ -60,7 +60,7 @@ export default function Dashboard() {
 
   return (
     <PageWrapper>
-      <Header title="Dashboard" subtitle="Vue d'ensemble des archives" />
+      <Header title="Tableau de bord" subtitle="Vue d'ensemble des archives" />
 
       {backupAlert && (
         <div className="mb-6 flex items-center gap-3 rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
