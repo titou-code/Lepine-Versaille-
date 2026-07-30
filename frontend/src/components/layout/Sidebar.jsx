@@ -17,7 +17,7 @@ const navItems = [
   { to: '/a-completer', icon: ClipboardList, label: 'À compléter', roles: ['super_admin', 'admin', 'archiviste'], notifKey: 'a_completer' },
   { to: '/a-detruire', icon: AlertTriangle, label: 'À détruire', roles: ['super_admin', 'admin', 'archiviste'], notifKey: 'a_detruire', notifKeySecondary: 'bientot', notifKeyAdmin: 'demandes_destruction' },
   { to: '/referentiel', icon: BookOpen, label: 'Référentiel CNIL', roles: ['super_admin', 'admin', 'archiviste', 'consultation'] },
-  { to: '/admin', icon: Settings, label: 'Administration', roles: ['super_admin', 'admin'] },
+  { to: '/admin', icon: Settings, label: 'Administration', roles: ['super_admin', 'admin'], notifKeyAdmin: 'demandes_reset' },
 ]
 
 function NotifBadge({ count, pulse, variant = 'danger' }) {

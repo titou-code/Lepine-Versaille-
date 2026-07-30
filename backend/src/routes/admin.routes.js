@@ -36,8 +36,8 @@ router.post('/users', authenticate, requireRole(['super_admin', 'admin']), async
     }
     const hash = await bcrypt.hash(password, 10)
     const { rows } = await pool.query(
-      'INSERT INTO users (email, password_hash, nom, prenom, role, must_change_password) VALUES ($1,$2,$3,$4,$5,true) RETURNING id, email, nom, prenom, role, actif',
-      [email, hash, nom || '', prenom || '', targetRole]
+      'INSERT INTO users (email, password_hash, nom, prenom, role, must_change_password, created_by) VALUES ($1,$2,$3,$4,$5,true,$6) RETURNING id, email, nom, prenom, role, actif',
+      [email, hash, nom || '', prenom || '', targetRole, req.user.id]
     )
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', rows[0].id, { action: 'creation', email, role: targetRole })
     res.status(201).json(rows[0])
@@ -134,8 +134,42 @@ router.patch('/users/:id/reset-password', authenticate, requireRole(['super_admi
     const hash = await bcrypt.hash(password, 10)
     await pool.query('UPDATE users SET password_hash = $1, must_change_password = true WHERE id = $2', [hash, id])
     await pool.query('UPDATE refresh_tokens SET revoked = true WHERE user_id = $1', [id])
+    // Clôturer toute demande de réinitialisation interne en attente pour cet utilisateur.
+    await pool.query(
+      "UPDATE demandes_reset SET statut = 'traitee', traite_par = $1, date_traitement = now() WHERE user_id = $2 AND statut = 'en_attente'",
+      [req.user.id, id]
+    )
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'reinitialisation_mdp' })
     res.json({ success: true })
+  } catch (err) {
+    console.error('[ADMIN]', err)
+    if (handleDbConstraintError(err, res)) return
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
+  }
+})
+
+// Demandes de réinitialisation de mot de passe en attente.
+// - super_admin : toutes les demandes.
+// - admin : uniquement les demandes des utilisateurs dont il est le créateur (created_by).
+router.get('/demandes-reset', authenticate, requireRole(['super_admin', 'admin']), async (req, res) => {
+  try {
+    const isSuper = req.user.role === 'super_admin'
+    const params = []
+    let where = "dr.statut = 'en_attente'"
+    if (!isSuper) {
+      where += ' AND u.created_by = $1'
+      params.push(req.user.id)
+    }
+    const { rows } = await pool.query(
+      `SELECT dr.id, dr.user_id, dr.date_demande,
+              u.nom, u.prenom, u.email, u.role
+         FROM demandes_reset dr
+         JOIN users u ON dr.user_id = u.id
+        WHERE ${where}
+        ORDER BY dr.date_demande DESC`,
+      params
+    )
+    res.json(rows)
   } catch (err) {
     console.error('[ADMIN]', err)
     if (handleDbConstraintError(err, res)) return

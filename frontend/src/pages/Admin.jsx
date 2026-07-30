@@ -354,6 +354,76 @@ function UsersSection() {
   )
 }
 
+function ResetRequestsSection() {
+  const [demandes, setDemandes] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [resetTarget, setResetTarget] = useState(null)
+  const [resetPw, setResetPw] = useState('')
+  const [resetPwConfirm, setResetPwConfirm] = useState('')
+  const toast = useToast()
+
+  async function fetchDemandes() {
+    setLoading(true)
+    try { setDemandes((await api.get('/admin/demandes-reset')) || []) } catch { setDemandes([]) }
+    setLoading(false)
+  }
+
+  useEffect(() => { fetchDemandes() }, [])
+
+  function closeReset() { setResetTarget(null); setResetPw(''); setResetPwConfirm('') }
+
+  async function handleReset() {
+    if (!resetTarget) return
+    if (resetPw !== resetPwConfirm) { toast('Les mots de passe ne correspondent pas', 'error'); return }
+    try {
+      await api.patch(`/admin/users/${resetTarget.user_id}/reset-password`, { password: resetPw })
+      toast('Mot de passe réinitialisé — demande traitée')
+      closeReset()
+      fetchDemandes()
+    } catch (err) { toast(`Erreur : ${err.message}`, 'error') }
+  }
+
+  if (loading) return <div className="flex justify-center py-10"><Spinner /></div>
+
+  return (
+    <Card>
+      <h3 className="text-base font-semibold mb-4 flex items-center gap-2"><KeyRound size={18} className="text-accent" /> Demandes de réinitialisation</h3>
+
+      {demandes.length === 0 ? (
+        <p className="text-center text-text-muted py-6">Aucune demande de réinitialisation en attente</p>
+      ) : (
+        <div className="space-y-2">
+          {demandes.map(d => (
+            <div key={d.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-hover">
+              <div>
+                <p className="text-sm font-medium">
+                  {d.prenom} {d.nom} <span className="text-xs text-text-muted capitalize">— {d.role?.replace('_', ' ')}</span>
+                </p>
+                <p className="text-xs text-text-muted">{d.email} · demandé le {formatDate(d.date_demande)}</p>
+              </div>
+              <Button size="sm" onClick={() => setResetTarget(d)}><KeyRound size={14} /> Réinitialiser le mot de passe</Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal open={!!resetTarget} onClose={closeReset} title="Réinitialiser le mot de passe" footer={
+        <><Button variant="ghost" onClick={closeReset}>Annuler</Button><Button onClick={handleReset}>Réinitialiser</Button></>
+      }>
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">Nouveau mot de passe temporaire pour <strong>{resetTarget ? `${resetTarget.prenom} ${resetTarget.nom}` : ''}</strong>.</p>
+          <div>
+            <Input label="Nouveau mot de passe" type="password" value={resetPw} onChange={e => setResetPw(e.target.value)} />
+            <p className="text-xs text-text-muted mt-1">{PASSWORD_RULE}</p>
+          </div>
+          <Input label="Confirmer le mot de passe" type="password" value={resetPwConfirm} onChange={e => setResetPwConfirm(e.target.value)} />
+          <p className="text-xs text-warning">L'utilisateur devra le changer à sa première connexion.</p>
+        </div>
+      </Modal>
+    </Card>
+  )
+}
+
 function SupprimesSection() {
   const [tab, setTab] = useState('elements')
   return (
@@ -674,6 +744,7 @@ export default function Admin() {
         {[
           { key: 'salles', label: 'Salles & Étagères', icon: Building2 },
           { key: 'users', label: 'Utilisateurs', icon: Users },
+          { key: 'resets', label: 'Réinitialisations', icon: KeyRound },
           { key: 'categories', label: 'Référentiel CNIL', icon: BookOpen },
           { key: 'supprimes', label: 'Corbeille', icon: Trash2 },
           { key: 'audit', label: 'Journal d\'audit', icon: ScrollText },
@@ -693,6 +764,7 @@ export default function Admin() {
 
       {tab === 'salles' && <SallesSection />}
       {tab === 'users' && <UsersSection />}
+      {tab === 'resets' && <ResetRequestsSection />}
       {tab === 'categories' && <CategoriesSection />}
       {tab === 'supprimes' && <SupprimesSection />}
       {tab === 'audit' && <AuditSection />}

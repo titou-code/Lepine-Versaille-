@@ -6,7 +6,7 @@ let globalRefresh = null
 
 export function useCompteurs() {
   const { user } = useAuth()
-  const [compteurs, setCompteurs] = useState({ a_completer: 0, a_detruire: 0, bientot: 0, demandes_destruction: 0 })
+  const [compteurs, setCompteurs] = useState({ a_completer: 0, a_detruire: 0, bientot: 0, demandes_destruction: 0, demandes_reset: 0 })
 
   const refresh = useCallback(async () => {
     if (!user) return

@@ -158,6 +158,35 @@ router.post('/forgot-password', authLimiter, async (req, res) => {
   }
 })
 
+// Mot de passe oublié SANS email : crée une demande de réinitialisation interne,
+// traitée par un administrateur. Réponse toujours neutre (anti-énumération).
+router.post('/forgot-password-interne', authLimiter, async (req, res) => {
+  const genericResponse = { success: true, message: 'Si un compte existe, votre demande a été transmise à un administrateur.' }
+  try {
+    const { email } = req.body
+    if (!email) return res.json(genericResponse)
+
+    const { rows } = await pool.query('SELECT id FROM users WHERE email = $1 AND actif = true AND deleted_at IS NULL', [email])
+    if (rows.length === 0) return res.json(genericResponse)
+    const userId = rows[0].id
+
+    // Éviter d'empiler plusieurs demandes en attente pour le même utilisateur.
+    const { rows: existing } = await pool.query(
+      "SELECT id FROM demandes_reset WHERE user_id = $1 AND statut = 'en_attente'",
+      [userId]
+    )
+    if (existing.length === 0) {
+      await pool.query('INSERT INTO demandes_reset (user_id) VALUES ($1)', [userId])
+      await logAudit(userId, 'demande_reset_interne', 'demandes_reset', userId, null)
+    }
+
+    res.json(genericResponse)
+  } catch (err) {
+    console.error('[FORGOT-INTERNE]', err)
+    res.json(genericResponse)
+  }
+})
+
 router.post('/reset-password', async (req, res) => {
   try {
     const { token, password } = req.body
@@ -247,7 +276,7 @@ router.post('/invitation/accept', async (req, res) => {
 
     const tokenHash = hashToken(token)
     const { rows } = await pool.query(
-      'SELECT id, email, role, nom, prenom, expires_at, used_at FROM invitations WHERE token_hash = $1',
+      'SELECT id, email, role, nom, prenom, expires_at, used_at, invited_by FROM invitations WHERE token_hash = $1',
       [tokenHash]
     )
     if (rows.length === 0) return res.status(404).json({ error: 'Invitation introuvable' })
@@ -257,8 +286,8 @@ router.post('/invitation/accept', async (req, res) => {
 
     const hash = await bcrypt.hash(password, 10)
     const { rows: userRows } = await pool.query(
-      'INSERT INTO users (email, password_hash, nom, prenom, role, must_change_password) VALUES ($1,$2,$3,$4,$5,false) RETURNING id, email, nom, prenom, role',
-      [inv.email, hash, inv.nom || '', inv.prenom || '', inv.role]
+      'INSERT INTO users (email, password_hash, nom, prenom, role, must_change_password, created_by) VALUES ($1,$2,$3,$4,$5,false,$6) RETURNING id, email, nom, prenom, role',
+      [inv.email, hash, inv.nom || '', inv.prenom || '', inv.role, inv.invited_by || null]
     )
 
     await pool.query('UPDATE invitations SET used_at = NOW() WHERE id = $1', [inv.id])

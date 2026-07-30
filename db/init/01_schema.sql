@@ -24,6 +24,7 @@ CREATE TABLE users (
   actif boolean DEFAULT true,
   must_change_password boolean DEFAULT false,
   email_original text,
+  created_by uuid REFERENCES users(id),
   deleted_at timestamp,
   created_at timestamptz DEFAULT now()
 );
@@ -186,6 +187,17 @@ CREATE TABLE password_resets (
   created_at timestamptz DEFAULT now()
 );
 CREATE INDEX idx_password_resets_token_hash ON password_resets(token_hash);
+
+-- LOT — DEMANDES DE RÉINITIALISATION INTERNES (sans email : traitées par l'administrateur)
+CREATE TABLE demandes_reset (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid REFERENCES users(id),
+  statut text NOT NULL DEFAULT 'en_attente' CHECK (statut IN ('en_attente','traitee')),
+  date_demande timestamptz DEFAULT now(),
+  traite_par uuid REFERENCES users(id),
+  date_traitement timestamptz
+);
+CREATE INDEX idx_demandes_reset_attente ON demandes_reset(statut) WHERE statut = 'en_attente';
 
 -- 3. INDEXES
 CREATE INDEX idx_documents_carton_id ON documents(carton_id);

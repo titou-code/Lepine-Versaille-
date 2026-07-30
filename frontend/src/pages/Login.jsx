@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { LogIn } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { api } from '../lib/api'
@@ -14,15 +14,10 @@ export default function Login() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const [smtpEnabled, setSmtpEnabled] = useState(false)
   const [mode, setMode] = useState('login')
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotSent, setForgotSent] = useState(false)
   const [forgotLoading, setForgotLoading] = useState(false)
-
-  useEffect(() => {
-    api.get('/auth/config').then(d => setSmtpEnabled(!!d.smtp)).catch(() => {})
-  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -41,7 +36,7 @@ export default function Login() {
     e.preventDefault()
     setForgotLoading(true)
     try {
-      await api.post('/auth/forgot-password', { email: forgotEmail })
+      await api.post('/auth/forgot-password-interne', { email: forgotEmail })
     } catch {}
     setForgotSent(true)
     setForgotLoading(false)
@@ -87,11 +82,9 @@ export default function Login() {
               {loading ? <Spinner size="sm" /> : <><LogIn size={16} /> Connexion</>}
             </Button>
 
-            {smtpEnabled && (
-              <button type="button" onClick={() => { setMode('forgot'); setError('') }} className="w-full text-xs text-text-muted hover:text-accent cursor-pointer">
-                Mot de passe oublié ?
-              </button>
-            )}
+            <button type="button" onClick={() => { setMode('forgot'); setError('') }} className="w-full text-xs text-text-muted hover:text-accent cursor-pointer">
+              Mot de passe oublié ?
+            </button>
           </form>
         )}
 
@@ -100,7 +93,7 @@ export default function Login() {
             {forgotSent ? (
               <>
                 <p className="text-sm text-text-secondary">
-                  Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.
+                  Si un compte existe, votre demande a été transmise à un administrateur.
                 </p>
                 <Button variant="outline" className="w-full" onClick={() => { setMode('login'); setForgotSent(false); setForgotEmail('') }}>
                   Retour à la connexion
@@ -109,7 +102,7 @@ export default function Login() {
             ) : (
               <form onSubmit={handleForgot} className="space-y-4">
                 <p className="text-sm text-text-secondary">
-                  Saisissez votre email pour recevoir un lien de réinitialisation.
+                  Saisissez votre email. Votre demande de réinitialisation sera transmise à un administrateur.
                 </p>
                 <Input
                   label="Email"
@@ -120,7 +113,7 @@ export default function Login() {
                   required
                 />
                 <Button type="submit" className="w-full" disabled={forgotLoading}>
-                  {forgotLoading ? <Spinner size="sm" /> : 'Envoyer le lien'}
+                  {forgotLoading ? <Spinner size="sm" /> : 'Envoyer la demande'}
                 </Button>
                 <button type="button" onClick={() => { setMode('login'); setForgotEmail('') }} className="w-full text-xs text-text-muted hover:text-accent cursor-pointer">
                   Retour à la connexion
