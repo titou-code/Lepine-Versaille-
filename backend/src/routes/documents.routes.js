@@ -211,6 +211,46 @@ router.put('/:id', authenticate, requireRole(['super_admin', 'admin', 'archivist
   }
 })
 
+// Emprunt : marquer un document comme sorti physiquement des archives par une personne.
+router.post('/:id/emprunter', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const emprunteur = (req.body.emprunte_par || '').trim()
+    if (!emprunteur) return res.status(400).json({ error: "Le nom de l'emprunteur est requis" })
+
+    const { rows } = await pool.query('SELECT detruit, emprunte_par FROM documents WHERE id = $1', [id])
+    if (rows.length === 0) return res.status(404).json({ error: 'Document introuvable' })
+    if (rows[0].detruit) return res.status(409).json({ error: 'Document détruit — emprunt impossible' })
+    if (rows[0].emprunte_par) return res.status(409).json({ error: `Document déjà emprunté par ${rows[0].emprunte_par}` })
+
+    await pool.query('UPDATE documents SET emprunte_par = $1, date_emprunt = now() WHERE id = $2', [emprunteur, id])
+    await logAudit(req.user.id, 'emprunt', 'documents', id, { emprunte_par: emprunteur })
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[DOCUMENTS]', err)
+    if (handleDbConstraintError(err, res)) return
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
+  }
+})
+
+// Retour : le document revient dans les archives et redevient disponible.
+router.post('/:id/retour', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { rows } = await pool.query('SELECT emprunte_par FROM documents WHERE id = $1', [id])
+    if (rows.length === 0) return res.status(404).json({ error: 'Document introuvable' })
+    if (!rows[0].emprunte_par) return res.status(409).json({ error: "Ce document n'est pas emprunté" })
+
+    await pool.query('UPDATE documents SET emprunte_par = NULL, date_emprunt = NULL WHERE id = $1', [id])
+    await logAudit(req.user.id, 'retour', 'documents', id, { emprunte_par: rows[0].emprunte_par })
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[DOCUMENTS]', err)
+    if (handleDbConstraintError(err, res)) return
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
+  }
+})
+
 router.get('/recherche-intelligente', authenticate, async (req, res) => {
   const { q, annee } = req.query
   if (!q || q.trim().length < 2) return res.json([])

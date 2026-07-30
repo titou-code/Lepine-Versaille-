@@ -96,6 +96,8 @@ CREATE TABLE documents (
   procedure_close boolean,
   a_completer boolean DEFAULT false,
   detruit boolean DEFAULT false,
+  emprunte_par text,        -- nom de l'emprunteur, NULL si le document est disponible
+  date_emprunt timestamptz, -- date de sortie physique, NULL si disponible
   created_by uuid REFERENCES users(id),
   session_id uuid,
   created_at timestamptz DEFAULT now(),
@@ -240,6 +242,7 @@ SELECT
   d.obligatoire, d.fondement_juridique, d.observations,
   d.date_precise, d.date_evenement, d.duree_mois_saisie,
   d.procedure_close, d.a_completer, d.detruit,
+  d.emprunte_par, d.date_emprunt,
   d.created_by, d.created_at, d.updated_at,
   c.numero AS carton_numero, c.salle_id, c.etagere_id, c.emplacement,
   s.nom AS salle_nom, e.nom AS etagere_nom,

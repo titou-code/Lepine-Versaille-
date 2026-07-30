@@ -18,6 +18,7 @@ import Badge from '../components/ui/Badge'
 import Modal from '../components/ui/Modal'
 import Spinner from '../components/ui/Spinner'
 import FormDocument from '../components/FormDocument'
+import EmpruntActions, { EmpruntBadge } from '../components/EmpruntActions'
 
 function EditDocModal({ doc, open, onClose, onSaved, salles, categories }) {
   const toast = useToast()
@@ -374,6 +375,7 @@ export default function Inventaire() {
                 <SortHeader col="date_limite_conservation">Date limite</SortHeader>
                 <th className="px-3 py-3 text-left text-xs font-medium text-text-muted uppercase">Statut</th>
                 <th className="px-3 py-3 text-left text-xs font-medium text-text-muted uppercase whitespace-nowrap min-w-[100px]">Obligation</th>
+                <th className="px-3 py-3 text-left text-xs font-medium text-text-muted uppercase whitespace-nowrap">Emprunt</th>
                 {canWrite && <th className="px-3 py-3 text-center text-xs font-medium text-text-muted uppercase">Actions</th>}
               </tr>
             </thead>
@@ -390,6 +392,9 @@ export default function Inventaire() {
                   <td className="px-3 py-2.5 font-mono text-xs whitespace-nowrap">{formatDate(doc.date_limite_conservation)}</td>
                   <td className="px-3 py-2.5">{doc.statut_calcule ? <Badge variant={doc.statut_calcule} /> : '—'}</td>
                   <td className="px-3 py-2.5 whitespace-nowrap"><Badge variant={doc.obligatoire ? 'obligatoire' : 'recommande'} /></td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    {doc.emprunte_par ? <EmpruntBadge doc={doc} /> : <span className="text-xs text-text-muted">Disponible</span>}
+                  </td>
                   {canWrite && (
                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
                       <div className="inline-flex gap-1">
@@ -399,13 +404,14 @@ export default function Inventaire() {
                         <Button variant="ghost" size="sm" onClick={() => setAddToCarton(doc)} title="Ajouter un document à ce carton">
                           <Plus size={14} className="text-accent" />
                         </Button>
+                        <EmpruntActions doc={doc} onChanged={fetchDocuments} />
                       </div>
                     </td>
                   )}
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={canWrite ? 11 : 10} className="px-3 py-8 text-center text-text-muted">Aucun document trouvé</td></tr>
+                <tr><td colSpan={canWrite ? 12 : 11} className="px-3 py-8 text-center text-text-muted">Aucun document trouvé</td></tr>
               )}
             </tbody>
           </table>

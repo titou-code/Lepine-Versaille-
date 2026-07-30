@@ -2,14 +2,17 @@ import { useState, useCallback } from 'react'
 import { Search as SearchIcon, MapPin, Package, FolderOpen } from 'lucide-react'
 import { api } from '../lib/api'
 import { computeStatut, formatDate } from '../lib/utils'
+import { useAuth } from '../contexts/AuthContext'
 import PageWrapper from '../components/layout/PageWrapper'
 import Header from '../components/layout/Header'
 import Card from '../components/ui/Card'
 import Input from '../components/ui/Input'
 import Badge from '../components/ui/Badge'
 import Spinner from '../components/ui/Spinner'
+import EmpruntActions, { EmpruntBadge } from '../components/EmpruntActions'
 
 export default function Recherche() {
+  const { canWrite } = useAuth()
   const [query, setQuery] = useState('')
   const [annee, setAnnee] = useState('')
   const [results, setResults] = useState([])
@@ -96,6 +99,7 @@ export default function Recherche() {
                     <Badge variant={doc.obligatoire ? 'obligatoire' : 'recommande'} />
                     {doc.statut_calcule && <Badge variant={doc.statut_calcule} />}
                     <span className="text-sm text-text-muted">{doc.theme}</span>
+                    <EmpruntBadge doc={doc} />
                   </div>
                   <h3 className="font-medium mb-1">{doc.categorie}</h3>
                   {doc.description && <p className="text-sm text-text-secondary">{doc.description}</p>}
@@ -129,6 +133,12 @@ export default function Recherche() {
                       <span className="font-mono font-bold text-accent">{doc.carton_numero}</span>
                     </div>
                   </div>
+                  {canWrite && (
+                    <div className="mt-3 pt-3 border-t border-border flex items-center justify-between text-xs text-text-muted">
+                      <span>{doc.emprunte_par ? `Sorti par ${doc.emprunte_par}` : 'Disponible'}</span>
+                      <EmpruntActions doc={doc} onChanged={search} />
+                    </div>
+                  )}
                 </div>
               </div>
             </Card>
