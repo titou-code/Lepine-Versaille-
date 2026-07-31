@@ -90,7 +90,7 @@ function EditDocModal({ doc, open, onClose, onSaved, salles, categories }) {
 
   return (
     <>
-      <Modal open={open && !confirmCarton} onClose={onClose} title="Modifier le document" footer={
+      <Modal open={open && !confirmCarton} onClose={onClose} size="lg" title="Modifier le document" footer={
         <>
           <Button variant="ghost" onClick={onClose}>Annuler</Button>
           <Button onClick={handleSave} disabled={saving}>
@@ -98,7 +98,7 @@ function EditDocModal({ doc, open, onClose, onSaved, salles, categories }) {
           </Button>
         </>
       }>
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+        <div className="space-y-6">
           <div className="bg-bg-secondary rounded-lg p-3 border border-border">
             <p className="text-xs text-text-muted mb-1">Carton actuel</p>
             <p className="font-mono font-bold text-accent">{doc.carton_numero}</p>
