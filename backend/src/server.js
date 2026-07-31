@@ -22,6 +22,9 @@ const adminRoutes = require('./routes/admin.routes')
 const notificationsRoutes = require('./routes/notifications.routes')
 
 const app = express()
+// Derrière le reverse proxy nginx : faire confiance au premier proxy pour lire l'IP
+// réelle via X-Forwarded-For (rate-limit par IP réelle et IP correcte dans l'audit).
+app.set('trust proxy', 1)
 const PORT = process.env.PORT || 4000
 
 app.use(helmet())
