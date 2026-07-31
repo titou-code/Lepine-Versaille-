@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { api, setToken, clearToken } from '../lib/api'
+import { api, setToken, clearToken, tryRefresh } from '../lib/api'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   async function signIn(email, password) {
     const data = await api.post('/auth/login', { email, password })
@@ -26,6 +26,25 @@ export function AuthProvider({ children }) {
     setUser(u => u ? { ...u, must_change_password: false } : u)
     setProfile(p => p ? { ...p, must_change_password: false } : p)
   }
+
+  // Au montage : tenter de restaurer la session via le cookie refresh (7 jours).
+  useEffect(() => {
+    async function restore() {
+      try {
+        const refreshed = await tryRefresh()
+        if (refreshed) {
+          const me = await api.get('/auth/me')
+          setUser(me)
+          setProfile(me)
+        }
+      } catch {
+        // restauration impossible → on reste déconnecté
+      } finally {
+        setLoading(false)
+      }
+    }
+    restore()
+  }, [])
 
   useEffect(() => {
     function handleExpired() { signOut() }

@@ -7,7 +7,7 @@ export function setToken(t) { token = t }
 export function getToken() { return token }
 export function clearToken() { token = null }
 
-async function tryRefresh() {
+export async function tryRefresh() {
   if (refreshPromise) return refreshPromise
   refreshPromise = fetch(`${API_BASE}/auth/refresh`, {
     method: 'POST',
