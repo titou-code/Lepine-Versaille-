@@ -85,6 +85,10 @@ router.patch('/users/:id', authenticate, requireRole(['super_admin', 'admin']), 
     if (fields.length === 0) return res.status(400).json({ error: 'Rien à modifier' })
     values.push(id)
     await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = $${idx}`, values)
+    // Désactivation d'un compte : révoquer immédiatement ses sessions actives.
+    if (req.body.actif === false || req.body.actif === 'false') {
+      await pool.query('UPDATE refresh_tokens SET revoked = true WHERE user_id = $1', [id])
+    }
     const { password, ...safeBody } = req.body
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'modification', ...safeBody })
     res.json({ success: true })
@@ -110,6 +114,7 @@ router.post('/users/:id/delete', authenticate, requireRole(['super_admin', 'admi
        WHERE id = $1`,
       [id]
     )
+    await pool.query('UPDATE refresh_tokens SET revoked = true WHERE user_id = $1', [id])
     await logAudit(req.user.id, 'gestion_utilisateur', 'users', id, { action: 'suppression' })
     res.json({ success: true })
   } catch (err) {
