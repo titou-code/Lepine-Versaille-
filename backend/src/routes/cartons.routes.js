@@ -245,4 +245,44 @@ router.get('/:id/dernier-document', authenticate, async (req, res) => {
   }
 })
 
+// PATCH /cartons/:id — modifier l'emplacement d'un carton (salle, étagère, rangée).
+router.patch('/:id', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
+  try {
+    const { id } = req.params
+    if (!isUuid(id)) return res.status(404).json({ error: 'Carton introuvable' })
+    const { salle_id, etagere_id, emplacement } = req.body
+
+    const { rows: cartonRows } = await pool.query('SELECT id FROM cartons WHERE id = $1', [id])
+    if (cartonRows.length === 0) return res.status(404).json({ error: 'Carton introuvable' })
+
+    // Validation d'existence (400 explicites, pas de 500), alignée sur la création de carton.
+    if (salle_id !== undefined && salle_id !== null && salle_id !== '') {
+      if (!isUuid(salle_id)) return res.status(400).json({ error: 'Salle introuvable' })
+      const { rows } = await pool.query('SELECT 1 FROM salles WHERE id = $1 AND deleted_at IS NULL', [salle_id])
+      if (rows.length === 0) return res.status(400).json({ error: 'Salle introuvable' })
+    }
+    if (etagere_id !== undefined && etagere_id !== null && etagere_id !== '') {
+      if (!isUuid(etagere_id)) return res.status(400).json({ error: 'Étagère introuvable' })
+      const { rows } = await pool.query('SELECT 1 FROM etageres WHERE id = $1 AND deleted_at IS NULL', [etagere_id])
+      if (rows.length === 0) return res.status(400).json({ error: 'Étagère introuvable' })
+    }
+
+    const fields = []
+    const values = []
+    let idx = 1
+    if (salle_id !== undefined) { fields.push(`salle_id = $${idx++}`); values.push(salle_id || null) }
+    if (etagere_id !== undefined) { fields.push(`etagere_id = $${idx++}`); values.push(etagere_id || null) }
+    if (emplacement !== undefined) { fields.push(`emplacement = $${idx++}`); values.push(emplacement || null) }
+    if (fields.length === 0) return res.status(400).json({ error: 'Rien à modifier' })
+    values.push(id)
+    await pool.query(`UPDATE cartons SET ${fields.join(', ')} WHERE id = $${idx}`, values)
+    await logAudit(req.user.id, 'modification', 'cartons', id, { salle_id: salle_id ?? null, etagere_id: etagere_id ?? null, emplacement: emplacement ?? null })
+    res.json({ success: true })
+  } catch (err) {
+    console.error('[CARTONS]', err)
+    if (handleDbConstraintError(err, res)) return
+    res.status(500).json({ error: 'Une erreur interne est survenue' })
+  }
+})
+
 module.exports = router

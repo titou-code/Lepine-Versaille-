@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Save, ArrowUpDown, MapPin } from 'lucide-react'
+import { Plus, Save, ArrowUpDown, MapPin, Pencil } from 'lucide-react'
 import { api } from '../lib/api'
 import { useSalles } from '../hooks/useSalles'
 import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
@@ -11,6 +11,7 @@ import Header from '../components/layout/Header'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import Select from '../components/ui/Select'
+import Input from '../components/ui/Input'
 import Modal from '../components/ui/Modal'
 import Spinner from '../components/ui/Spinner'
 import BlocDocuments, { emptyBloc } from '../components/BlocDocuments'
@@ -103,6 +104,67 @@ function AjouterDocumentsModal({ carton, open, onClose, onSaved, categories }) {
   )
 }
 
+// Modification de l'emplacement d'un carton (salle / étagère / rangée) via PATCH /cartons/:id.
+function ModifierEmplacementModal({ carton, open, onClose, onSaved, salles }) {
+  const toast = useToast()
+  const [salleId, setSalleId] = useState('')
+  const [etagereId, setEtagereId] = useState('')
+  const [emplacement, setEmplacement] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (carton) {
+      setSalleId(carton.salle_id || '')
+      setEtagereId(carton.etagere_id || '')
+      setEmplacement(carton.emplacement || '')
+    }
+  }, [carton])
+
+  const selectedSalle = salles.find(s => s.id === salleId)
+  const etageres = selectedSalle?.etageres?.filter(e => e.actif) || []
+  const selectedEtagere = etageres.find(e => e.id === etagereId)
+  const nbRangees = selectedEtagere?.nombre_rangees || 0
+
+  async function handleSave() {
+    if (!salleId) { toast('Sélectionnez une salle', 'error'); return }
+    setSaving(true)
+    try {
+      await api.patch(`/cartons/${carton.id}`, {
+        salle_id: salleId,
+        etagere_id: etagereId || null,
+        emplacement: emplacement || null,
+      })
+      toast('Emplacement du carton modifié')
+      refreshCompteurs()
+      onSaved()
+    } catch (err) {
+      toast(`Erreur : ${err.message}`, 'error')
+    }
+    setSaving(false)
+  }
+
+  if (!open || !carton) return null
+
+  return (
+    <Modal open={open} onClose={onClose} title={`Modifier l'emplacement — ${carton.numero}`} footer={
+      <>
+        <Button variant="ghost" onClick={onClose}>Annuler</Button>
+        <Button onClick={handleSave} disabled={saving}>{saving ? <Spinner size="sm" /> : <><Save size={16} /> Enregistrer</>}</Button>
+      </>
+    }>
+      <div className="space-y-4">
+        <Select label="Salle" value={salleId} onChange={e => { setSalleId(e.target.value); setEtagereId(''); setEmplacement('') }} placeholder="Sélectionner une salle" options={salles.map(s => ({ value: s.id, label: s.nom }))} />
+        <Select label="Étagère" value={etagereId} onChange={e => { setEtagereId(e.target.value); setEmplacement('') }} placeholder={etageres.length ? 'Sélectionner une étagère' : 'Aucune étagère'} options={etageres.map(e => ({ value: e.id, label: e.nom }))} disabled={!salleId} />
+        {etagereId && nbRangees > 0 ? (
+          <Select label="Emplacement (rangée)" value={emplacement} onChange={e => setEmplacement(e.target.value)} placeholder="Sélectionner une rangée" options={Array.from({ length: nbRangees }, (_, i) => ({ value: `Rangée ${i + 1}`, label: `Rangée ${i + 1}` }))} />
+        ) : (
+          <Input label="Emplacement (rangée/niveau)" value={emplacement} onChange={e => setEmplacement(e.target.value)} placeholder="Ex : Rangée 3, Niveau 2" />
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 export default function Cartons() {
   const { salles } = useSalles()
   const { categories } = useCategoriesCNIL()
@@ -116,6 +178,7 @@ export default function Cartons() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [addTarget, setAddTarget] = useState(null)
+  const [editTarget, setEditTarget] = useState(null)
   const pageSize = 50
 
   const selectedSalle = salles.find(s => s.id === salleId)
@@ -201,7 +264,10 @@ export default function Cartons() {
                       {etat ? <span className={cn('inline-flex items-center text-xs font-medium border rounded-full px-2 py-0.5', etat.cls)}>{etat.label}</span> : <span className="text-xs text-text-muted">—</span>}
                     </td>
                     <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                      <Button variant="outline" size="sm" onClick={() => setAddTarget(c)}><Plus size={14} /> Ajouter des documents</Button>
+                      <div className="inline-flex gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setAddTarget(c)}><Plus size={14} /> Ajouter des documents</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setEditTarget(c)} title="Modifier l'emplacement du carton"><Pencil size={14} className="text-accent" /> Emplacement</Button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -230,6 +296,14 @@ export default function Cartons() {
         onClose={() => setAddTarget(null)}
         onSaved={() => { setAddTarget(null); fetchCartons() }}
         categories={categories}
+      />
+
+      <ModifierEmplacementModal
+        carton={editTarget}
+        open={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onSaved={() => { setEditTarget(null); fetchCartons() }}
+        salles={salles}
       />
     </PageWrapper>
   )
