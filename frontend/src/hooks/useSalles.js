@@ -16,9 +16,9 @@ export function useSalles() {
     setLoading(false)
   }
 
-  async function createSalle(nom) {
+  async function createSalle(nom, prefixe) {
     try {
-      const data = await api.post('/salles', { nom })
+      const data = await api.post('/salles', { nom, prefixe })
       fetchSalles()
       return { data, error: null }
     } catch (error) {

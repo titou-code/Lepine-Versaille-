@@ -6,7 +6,13 @@ import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useCartons } from '../hooks/useCartons'
 import { useToast } from '../components/ui/Toast'
 import { refreshCompteurs } from '../hooks/useCompteurs'
-import { computeDateReference, computeDateLimite, getPrefixFromSalle } from '../lib/utils'
+import { computeDateReference, computeDateLimite } from '../lib/utils'
+
+// Préfixe de numérotation de la salle ; repli propre sur les 3 premières lettres du nom
+// si une salle ancienne n'a pas encore de préfixe.
+function prefixeSalle(salle) {
+  return salle?.prefixe || (salle?.nom || '').slice(0, 3).toUpperCase()
+}
 import PageWrapper from '../components/layout/PageWrapper'
 import Header from '../components/layout/Header'
 import Card from '../components/ui/Card'
@@ -37,7 +43,7 @@ export default function Saisie() {
 
   useEffect(() => {
     if (!selectedSalle) { setNumero(''); return }
-    const prefix = getPrefixFromSalle(selectedSalle.nom)
+    const prefix = prefixeSalle(selectedSalle)
     getNextNumero(prefix).then(n => setNumero(n || `${prefix}-001`))
   }, [selectedSalle])
 
@@ -81,7 +87,7 @@ export default function Saisie() {
 
     if (docsData.length === 0) { toast('Ajoutez au moins un document valide', 'error'); return }
 
-    const prefix = getPrefixFromSalle(selectedSalle.nom)
+    const prefix = prefixeSalle(selectedSalle)
     const cartonData = { prefix, salle_id: salleId, etagere_id: etagereId || null, emplacement: emplacement || null, created_by: user.id }
 
     const { data, error } = await createCartonWithDocuments(cartonData, docsData)

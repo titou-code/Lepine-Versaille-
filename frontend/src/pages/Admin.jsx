@@ -46,21 +46,24 @@ function SallesSection() {
   const { salles, loading, createSalle, updateSalle, deleteSalle, createEtagere, updateEtagere, deleteEtagere } = useSalles()
   const toast = useToast()
   const [newSalle, setNewSalle] = useState('')
+  const [newPrefixe, setNewPrefixe] = useState('')
   const [editSalle, setEditSalle] = useState(null)
   const [newEtagere, setNewEtagere] = useState({ salle_id: '', nom: '', nombre_rangees: 5 })
   const [expandedSalle, setExpandedSalle] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
 
   async function handleAddSalle() {
-    if (!newSalle.trim()) return
-    const { error } = await createSalle(newSalle.trim())
+    if (!newSalle.trim() || !newPrefixe.trim()) return
+    const { error } = await createSalle(newSalle.trim(), newPrefixe.trim())
     if (error) toast(`Erreur : ${error.message}`, 'error')
-    else { toast('Salle créée'); setNewSalle('') }
+    else { toast('Salle créée'); setNewSalle(''); setNewPrefixe('') }
   }
 
   async function handleUpdateSalle() {
     if (!editSalle) return
-    const { error } = await updateSalle(editSalle.id, { nom: editSalle.nom })
+    const updates = { nom: editSalle.nom }
+    if (editSalle.prefixe && editSalle.prefixe.trim()) updates.prefixe = editSalle.prefixe.trim()
+    const { error } = await updateSalle(editSalle.id, updates)
     if (error) toast(`Erreur : ${error.message}`, 'error')
     else { toast('Salle modifiée'); setEditSalle(null) }
   }
@@ -90,16 +93,19 @@ function SallesSection() {
         <h3 className="text-base font-semibold mb-4 flex items-center gap-2">
           <Building2 size={18} className="text-accent" /> Salles
         </h3>
-        <div className="flex gap-3 mb-4">
-          <Input value={newSalle} onChange={e => setNewSalle(e.target.value)} placeholder="Nom de la nouvelle salle" className="flex-1" />
-          <Button onClick={handleAddSalle} disabled={!newSalle.trim()}><Plus size={14} /> Ajouter</Button>
+        <div className="flex gap-3 mb-1 flex-wrap items-end">
+          <Input value={newSalle} onChange={e => setNewSalle(e.target.value)} placeholder="Nom de la nouvelle salle" className="flex-1 min-w-[180px]" />
+          <Input value={newPrefixe} onChange={e => setNewPrefixe(e.target.value.toUpperCase())} placeholder="Préfixe" maxLength={5} className="w-28" />
+          <Button onClick={handleAddSalle} disabled={!newSalle.trim() || !newPrefixe.trim()}><Plus size={14} /> Ajouter</Button>
         </div>
+        <p className="text-xs text-text-muted mb-4">Le préfixe est utilisé pour numéroter les cartons de cette salle, ex. SS-001.</p>
         <div className="space-y-2">
           {salles.map(salle => (
             <div key={salle.id}>
               <div className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-bg-hover transition-colors">
                 <button onClick={() => setExpandedSalle(expandedSalle === salle.id ? null : salle.id)} className="flex items-center gap-2 text-sm font-medium cursor-pointer flex-1 text-left">
                   <span>{salle.nom}</span>
+                  {salle.prefixe && <span className="text-xs font-mono text-accent bg-accent/10 rounded px-1.5 py-0.5">{salle.prefixe}</span>}
                   <span className="text-xs text-text-muted">({salle.etageres?.length || 0} étagères)</span>
                 </button>
                 <div className="flex gap-1">
@@ -144,7 +150,15 @@ function SallesSection() {
       <Modal open={!!editSalle} onClose={() => setEditSalle(null)} title="Modifier la salle" footer={
         <><Button variant="ghost" onClick={() => setEditSalle(null)}>Annuler</Button><Button onClick={handleUpdateSalle}>Enregistrer</Button></>
       }>
-        {editSalle && <Input label="Nom" value={editSalle.nom} onChange={e => setEditSalle(prev => ({ ...prev, nom: e.target.value }))} />}
+        {editSalle && (
+          <div className="space-y-4">
+            <Input label="Nom" value={editSalle.nom} onChange={e => setEditSalle(prev => ({ ...prev, nom: e.target.value }))} />
+            <div>
+              <Input label="Préfixe des cartons" value={editSalle.prefixe || ''} onChange={e => setEditSalle(prev => ({ ...prev, prefixe: e.target.value.toUpperCase() }))} maxLength={5} />
+              <p className="text-xs text-text-muted mt-1">Le changement ne renomme pas les cartons existants.</p>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ConfirmDeleteModal open={!!deleteTarget} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete} label={deleteTarget?.label || ''} />

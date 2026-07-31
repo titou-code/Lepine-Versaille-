@@ -33,6 +33,7 @@ CREATE TABLE users (
 CREATE TABLE salles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   nom text NOT NULL,
+  prefixe text,          -- préfixe de numérotation des cartons de la salle (ex. SS-001)
   actif boolean DEFAULT true,
   deleted_at timestamp
 );
@@ -140,7 +141,7 @@ CREATE TABLE compteurs_numerotation (
   prefixe text PRIMARY KEY,
   dernier_numero integer NOT NULL DEFAULT 0
 );
-INSERT INTO compteurs_numerotation (prefixe, dernier_numero) VALUES ('SS', 0), ('R1', 0), ('RDC', 0) ON CONFLICT DO NOTHING;
+INSERT INTO compteurs_numerotation (prefixe, dernier_numero) VALUES ('SS', 0), ('PE', 0), ('RDC', 0) ON CONFLICT DO NOTHING;
 
 -- LOT G — AUDIT
 CREATE TABLE audit_log (
@@ -266,7 +267,7 @@ CREATE TRIGGER documents_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- 7. SALLES INITIALES
-INSERT INTO salles (nom, actif) VALUES
-  ('Sous-sol', true),
-  ('1er étage', true),
-  ('RDC - Bureau Agathe', true);
+INSERT INTO salles (nom, prefixe, actif) VALUES
+  ('Sous-sol', 'SS', true),
+  ('1er étage', 'PE', true),
+  ('RDC - Bureau Agathe', 'RDC', true);
