@@ -5,6 +5,7 @@ import { useCategoriesCNIL } from '../hooks/useCategoriesCNIL'
 import { useAuth } from '../contexts/AuthContext'
 import { useToast } from '../components/ui/Toast'
 import { api } from '../lib/api'
+import { refreshCompteurs } from '../hooks/useCompteurs'
 import { formatDate, PASSWORD_RULE } from '../lib/utils'
 import PageWrapper from '../components/layout/PageWrapper'
 import Header from '../components/layout/Header'
@@ -236,6 +237,7 @@ function UsersSection() {
       await api.patch(`/admin/users/${resetTarget.id}/reset-password`, { password: resetPw })
       toast('Mot de passe réinitialisé')
       closeReset()
+      refreshCompteurs()
     } catch (err) { toast(`Erreur : ${err.message}`, 'error') }
   }
 
@@ -380,6 +382,7 @@ function ResetRequestsSection() {
       toast('Mot de passe réinitialisé — demande traitée')
       closeReset()
       fetchDemandes()
+      refreshCompteurs()
     } catch (err) { toast(`Erreur : ${err.message}`, 'error') }
   }
 
