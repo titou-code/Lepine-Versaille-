@@ -48,7 +48,9 @@ router.post('/login', authLimiter, async (req, res) => {
 
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // Secure par défaut en production ; COOKIE_SECURE=false le force à false pour un
+      // déploiement interne en HTTP pur (sans HTTPS ni reverse proxy TLS).
+      secure: process.env.COOKIE_SECURE === 'false' ? false : process.env.NODE_ENV === 'production',
       sameSite: 'strict',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/api/auth',
