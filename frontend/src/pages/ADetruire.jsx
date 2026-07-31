@@ -37,6 +37,9 @@ export default function ADetruire() {
   const [demandes, setDemandes] = useState([])
   const [validateTarget, setValidateTarget] = useState(null)
 
+  // Filtre d'affichage : tout | a_detruire | bientot | demandes
+  const [filter, setFilter] = useState('tout')
+
   const loadDemandes = useCallback(async () => {
     if (!isAdmin) return
     try { setDemandes((await getDemandes()) || []) } catch { setDemandes([]) }
@@ -189,11 +192,39 @@ export default function ADetruire() {
 
   if (loading) return <PageWrapper><div className="flex justify-center py-20"><Spinner size="lg" /></div></PageWrapper>
 
+  const filterOptions = [
+    { key: 'tout', label: 'Tout' },
+    { key: 'a_detruire', label: 'À détruire maintenant' },
+    { key: 'bientot', label: 'Bientôt à détruire' },
+    ...(isAdmin ? [{ key: 'demandes', label: 'Demandes en attente' }] : []),
+  ]
+  const showDemandes = isAdmin && (filter === 'tout' || filter === 'demandes') && demandes.length > 0
+  const showADetruire = (filter === 'tout' || filter === 'a_detruire') && aDetruire.length > 0
+  const showBientot = (filter === 'tout' || filter === 'bientot') && bientot.length > 0
+  const emptyMsg = filter === 'demandes' ? 'Aucune demande de destruction en attente'
+    : filter === 'bientot' ? 'Aucun document à détruire bientôt'
+    : filter === 'a_detruire' ? 'Aucun document à détruire maintenant'
+    : 'Aucun document à détruire pour le moment'
+
   return (
     <PageWrapper>
-      <Header title="Documents à détruire" subtitle={`${aDetruire.length} à détruire · ${bientot.length} bientôt`} />
+      <Header title="Documents à détruire" subtitle={`${aDetruire.length} à détruire · ${bientot.length} bientôt${isAdmin ? ` · ${demandes.length} demande(s) en attente` : ''}`} />
 
-      {isAdmin && demandes.length > 0 && (
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {filterOptions.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+              filter === f.key ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:bg-bg-hover'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {showDemandes && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="text-accent" size={20} />
@@ -236,7 +267,7 @@ export default function ADetruire() {
         </div>
       )}
 
-      {aDetruire.length > 0 && (
+      {showADetruire && (
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="text-danger" size={20} />
@@ -248,7 +279,7 @@ export default function ADetruire() {
         </div>
       )}
 
-      {bientot.length > 0 && (
+      {showBientot && (
         <div>
           <div className="flex items-center gap-2 mb-4">
             <AlertCircle className="text-warning" size={20} />
@@ -260,10 +291,10 @@ export default function ADetruire() {
         </div>
       )}
 
-      {aDetruire.length === 0 && bientot.length === 0 && (
+      {!showDemandes && !showADetruire && !showBientot && (
         <div className="text-center py-20 text-text-muted">
           <AlertTriangle size={48} className="mx-auto mb-4 opacity-30" />
-          <p>Aucun document à détruire pour le moment</p>
+          <p>{emptyMsg}</p>
         </div>
       )}
 
