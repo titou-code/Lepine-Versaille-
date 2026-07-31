@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { UserPlus } from 'lucide-react'
 import { api } from '../lib/api'
 import { PASSWORD_RULE } from '../lib/utils'
+import { useBranding } from '../hooks/useBranding'
 import ClientLogo from '../components/ClientLogo'
 import Button from '../components/ui/Button'
 import Input from '../components/ui/Input'
@@ -12,6 +13,7 @@ export default function InvitationAccept() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
   const token = params.get('token')
+  const { clientName } = useBranding()
 
   const [invitation, setInvitation] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -51,7 +53,7 @@ export default function InvitationAccept() {
             <ClientLogo className="h-20 w-auto" iconSize={72} />
           </div>
           <h1 className="text-2xl font-bold text-text-primary">Archives</h1>
-          <p className="text-sm text-text-secondary mt-1">Lépine Versailles</p>
+          {clientName && <p className="text-sm text-text-secondary mt-1">{clientName}</p>}
         </div>
 
         <div className="bg-bg-card border border-border rounded-xl p-6 space-y-4">

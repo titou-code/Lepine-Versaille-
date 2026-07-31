@@ -3,8 +3,6 @@
 // on ne retient donc que les réponses du bon type.
 
 const LOGO_CANDIDATES = [
-  '/branding/Lepine-logo.png',
-  '/branding/Lepine-logo.jpg',
   '/branding/client-logo.png',
 ]
 

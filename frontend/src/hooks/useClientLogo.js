@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react'
 
 // Recherche du logo client dans l'ordre. Premier trouvé = affiché.
 const CANDIDATES = [
-  '/branding/Lepine-logo.png',
-  '/branding/Lepine-logo.jpg',
   '/branding/client-logo.png',
 ]
 

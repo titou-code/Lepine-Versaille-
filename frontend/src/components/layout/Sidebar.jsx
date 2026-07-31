@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCompteurs } from '../../hooks/useCompteurs'
+import { useBranding } from '../../hooks/useBranding'
 import {
   LayoutDashboard, FilePlus, List, Search,
   AlertTriangle, BookOpen, Settings, LogOut, Menu, X, ClipboardList, Boxes, KeyRound, ChevronUp
@@ -94,6 +95,7 @@ function ChangePasswordModal({ open, onClose }) {
 export default function Sidebar() {
   const { profile, role, isAdmin, signOut } = useAuth()
   const { compteurs } = useCompteurs()
+  const { clientName } = useBranding()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [pwOpen, setPwOpen] = useState(false)
@@ -130,7 +132,7 @@ export default function Sidebar() {
           <ClientLogo className="h-24 w-auto" iconSize={96} />
           <div>
             <h1 className="text-base font-bold text-text-primary leading-tight">Archives</h1>
-            <p className="text-xs text-text-muted">Lépine Versailles</p>
+            {clientName && <p className="text-xs text-text-muted">{clientName}</p>}
           </div>
         </div>
       </div>

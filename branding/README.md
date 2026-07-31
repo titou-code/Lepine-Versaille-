@@ -14,8 +14,7 @@ même build à tous les clients : il suffit d'y déposer les fichiers ci-dessous
 - **PNG à fond transparent**, carré, **~512 × 512 px**.
 - Sert à la fois dans l'interface (barre latérale, page de connexion) et comme icône de
   l'application installée (PWA), quand il est présent.
-- Noms reconnus, dans l'ordre : `client-logo.png`, `Lepine-logo.png`, `Lepine-logo.jpg`.
-  Le premier trouvé est utilisé. **`client-logo.png` est le nom recommandé** pour un nouveau client.
+- **Nom reconnu : `client-logo.png`** — déposez votre logo sous ce nom exact.
 
 ### 2. Le nom — `branding.json` (optionnel)
 Fichier JSON facultatif donnant le nom affiché du client :

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LogIn } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useBranding } from '../hooks/useBranding'
 import { api } from '../lib/api'
 import ClientLogo from '../components/ClientLogo'
 import Button from '../components/ui/Button'
@@ -9,6 +10,7 @@ import Spinner from '../components/ui/Spinner'
 
 export default function Login() {
   const { signIn } = useAuth()
+  const { clientName } = useBranding()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -50,7 +52,7 @@ export default function Login() {
             <ClientLogo className="h-60 w-auto" iconSize={192} />
           </div>
           <h1 className="text-2xl font-bold text-text-primary">Archives</h1>
-          <p className="text-sm text-text-secondary mt-1">Lépine Versailles</p>
+          {clientName && <p className="text-sm text-text-secondary mt-1">{clientName}</p>}
         </div>
 
         {mode === 'login' && (
