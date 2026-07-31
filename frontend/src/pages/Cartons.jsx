@@ -82,7 +82,7 @@ function AjouterDocumentsModal({ carton, open, onClose, onSaved, categories }) {
   if (!open || !carton) return null
 
   return (
-    <Modal open={open} onClose={onClose} title={`Ajouter des documents — ${carton.numero}`} footer={
+    <Modal open={open} onClose={onClose} size="lg" title={`Ajouter des documents — ${carton.numero}`} footer={
       <>
         <Button variant="ghost" onClick={onClose}>Annuler</Button>
         <Button onClick={handleSave} disabled={saving}>{saving ? <Spinner size="sm" /> : <><Save size={16} /> Enregistrer</>}</Button>
@@ -146,7 +146,7 @@ function ModifierEmplacementModal({ carton, open, onClose, onSaved, salles }) {
   if (!open || !carton) return null
 
   return (
-    <Modal open={open} onClose={onClose} title={`Modifier l'emplacement — ${carton.numero}`} footer={
+    <Modal open={open} onClose={onClose} size="md" title={`Modifier l'emplacement — ${carton.numero}`} footer={
       <>
         <Button variant="ghost" onClick={onClose}>Annuler</Button>
         <Button onClick={handleSave} disabled={saving}>{saving ? <Spinner size="sm" /> : <><Save size={16} /> Enregistrer</>}</Button>
