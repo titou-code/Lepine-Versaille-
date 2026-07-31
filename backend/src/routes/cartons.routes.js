@@ -114,6 +114,11 @@ router.post('/', authenticate, requireRole(['super_admin', 'admin', 'archiviste'
       if (rows.length === 0) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Étagère introuvable' }) }
     }
     for (const doc of (Array.isArray(documents) ? documents : [])) {
+      // Un document exploitable (description, catégorie ou année) doit porter un service (theme).
+      if ((doc.description || doc.categorie_cnil_id || doc.annee_document) && (typeof doc.theme !== 'string' || doc.theme.trim() === '')) {
+        await client.query('ROLLBACK')
+        return res.status(400).json({ error: 'Le service est requis pour chaque document' })
+      }
       if (doc.categorie_cnil_id) {
         if (!isUuid(doc.categorie_cnil_id)) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'Catégorie CNIL introuvable' }) }
         const { rows } = await client.query('SELECT 1 FROM categories_cnil WHERE id = $1', [doc.categorie_cnil_id])
