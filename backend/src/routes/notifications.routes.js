@@ -6,24 +6,15 @@ const router = Router()
 
 router.get('/compteurs', authenticate, async (req, res) => {
   try {
-    const { rows: allDocs } = await pool.query(
-      "SELECT date_limite_conservation, a_completer, detruit FROM v_documents_complets WHERE detruit = false"
-    )
-
-    const now = new Date()
-    const seuil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
-
-    let a_completer = 0
-    let a_detruire = 0
-    let bientot = 0
-
-    for (const doc of allDocs) {
-      if (doc.a_completer) { a_completer++; continue }
-      if (!doc.date_limite_conservation) continue
-      const dl = new Date(doc.date_limite_conservation)
-      if (dl < now) a_detruire++
-      else if (dl <= seuil) bientot++
-    }
+    const { rows: cptRows } = await pool.query(`
+      SELECT
+        COUNT(*) FILTER (WHERE a_completer)::int AS a_completer,
+        COUNT(*) FILTER (WHERE NOT a_completer AND date_limite_conservation < CURRENT_DATE)::int AS a_detruire,
+        COUNT(*) FILTER (WHERE NOT a_completer AND date_limite_conservation >= CURRENT_DATE
+                         AND date_limite_conservation <= CURRENT_DATE + INTERVAL '30 days')::int AS bientot
+      FROM documents WHERE detruit = false
+    `)
+    const { a_completer, a_detruire, bientot } = cptRows[0]
 
     // Compteur des demandes de destruction en attente — pertinent uniquement pour admin/super_admin.
     let demandes_destruction = 0
