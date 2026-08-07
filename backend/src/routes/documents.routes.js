@@ -84,24 +84,44 @@ router.get('/a-completer', authenticate, requireRole(['super_admin', 'admin', 'a
 router.patch('/:id/completer', authenticate, requireRole(['super_admin', 'admin', 'archiviste']), async (req, res) => {
   try {
     const { id } = req.params
-    const { date_evenement, duree_mois_saisie, procedure_close, date_precise } = req.body
+    const { date_evenement, duree_mois_saisie, procedure_close, date_precise, categorie_cnil_id } = req.body
 
-    const { rows: catRows } = await pool.query(
-      'SELECT c.* FROM documents d JOIN categories_cnil c ON d.categorie_cnil_id = c.id WHERE d.id = $1', [id]
-    )
-    if (catRows.length === 0) return res.status(404).json({ error: 'Document introuvable' })
+    // Charger le document seul : 404 uniquement s'il n'existe pas ou est détruit.
+    const { rows: docRows } = await pool.query('SELECT * FROM documents WHERE id = $1 AND detruit = false', [id])
+    if (docRows.length === 0) return res.status(404).json({ error: 'Document introuvable' })
+    const existing = docRows[0]
 
-    const { rows: docRows } = await pool.query('SELECT * FROM documents WHERE id = $1', [id])
-    const doc = { ...docRows[0], date_evenement, duree_mois_saisie, procedure_close, date_precise }
-    const dateLimite = calculerDateLimite(doc, catRows[0])
+    // Catégorie effective : celle du body si fournie, sinon celle du document.
+    const effectiveCatId = categorie_cnil_id || existing.categorie_cnil_id
+    if (!effectiveCatId) {
+      return res.status(400).json({ error: 'Une catégorie est requise pour calculer la date limite' })
+    }
+    const { rows: catRows } = await pool.query('SELECT * FROM categories_cnil WHERE id = $1', [effectiveCatId])
+    if (catRows.length === 0) return res.status(400).json({ error: 'Catégorie CNIL introuvable' })
+    const cat = catRows[0]
+
+    const doc = { ...existing, categorie_cnil_id: effectiveCatId, date_evenement, duree_mois_saisie, procedure_close, date_precise }
+    const dateLimite = calculerDateLimite(doc, cat)
     const aCompleter = (dateLimite === null || dateLimite === undefined)
 
-    await pool.query(
-      `UPDATE documents SET date_evenement = $1, duree_mois_saisie = $2, procedure_close = $3, date_precise = $4,
-       date_limite_conservation = $5, a_completer = $6 WHERE id = $7`,
-      [date_evenement || null, duree_mois_saisie || null, procedure_close ?? null, date_precise || null,
-       dateLimite, aCompleter, id]
-    )
+    if (categorie_cnil_id) {
+      // Attribution d'une catégorie : recopier obligatoire / fondement / type_date (même logique qu'à la saisie).
+      await pool.query(
+        `UPDATE documents SET categorie_cnil_id = $1, obligatoire = $2, fondement_juridique = $3, type_date = $4,
+         date_evenement = $5, duree_mois_saisie = $6, procedure_close = $7, date_precise = $8,
+         date_limite_conservation = $9, a_completer = $10 WHERE id = $11`,
+        [effectiveCatId, cat.obligatoire ?? false, cat.fondement_juridique || null, cat.type_date_reference || existing.type_date,
+         date_evenement || null, duree_mois_saisie || null, procedure_close ?? null, date_precise || null,
+         dateLimite, aCompleter, id]
+      )
+    } else {
+      await pool.query(
+        `UPDATE documents SET date_evenement = $1, duree_mois_saisie = $2, procedure_close = $3, date_precise = $4,
+         date_limite_conservation = $5, a_completer = $6 WHERE id = $7`,
+        [date_evenement || null, duree_mois_saisie || null, procedure_close ?? null, date_precise || null,
+         dateLimite, aCompleter, id]
+      )
+    }
     await logAudit(req.user.id, 'modification', 'documents', id, { action: 'completion' })
     res.json({ success: true, date_limite_conservation: dateLimite })
   } catch (err) {
