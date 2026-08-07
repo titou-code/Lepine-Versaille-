@@ -32,8 +32,9 @@ docker compose exec backend node scripts/create-admin.js admin@lepine.fr motdepa
 |----------|-------------|--------|
 | `POSTGRES_USER` | Utilisateur PostgreSQL | `archives` |
 | `POSTGRES_PASSWORD` | Mot de passe PostgreSQL | `archives_secret` |
-| `JWT_SECRET` | Secret pour signer les tokens JWT | `change-me-in-production` |
+| `JWT_SECRET` | Secret pour signer les tokens JWT (≥ 32 caractères) | `change-me-in-production` |
 | `APP_PORT` | Port exposé pour l'application | `8080` |
+| `COOKIE_SECURE` | Mettre à `false` pour un déploiement **HTTP interne** (sans TLS) : désactive le flag `Secure` du cookie de session, sinon la reconnexion auto échoue | *(vide → `Secure` en production)* |
 
 ## Architecture
 
@@ -83,27 +84,45 @@ docker compose exec backup \
 
 ## Authentification
 
-- JWT stocké en mémoire (pas en localStorage)
-- Au refresh de page, l'utilisateur doit se reconnecter
-- Tokens signés avec durée de vie de 8 heures
+- **Access token JWT** conservé en mémoire (jamais en localStorage), durée de vie **2 h**.
+- **Refresh token** en cookie `httpOnly` / `SameSite=Strict` (durée **7 jours**, marqué `Secure` en production — voir `COOKIE_SECURE`).
+- **Session restaurée au rechargement de page (F5)** via le refresh token tant qu'il est valide ; la déconnexion ou l'expiration renvoie au login.
+- Suppression ou désactivation d'un compte → ses sessions actives sont **révoquées immédiatement**.
+- Menu profil (bas de la barre latérale) : **changement de mot de passe** volontaire et déconnexion.
+- **Mot de passe oublié sans email** : la demande est transmise à un administrateur, qui réinitialise depuis l'espace d'administration.
 
 ## Rôles
 
 | Rôle | Accès |
 |------|-------|
-| `admin` | Tout (dashboard, saisie, inventaire, recherche, destruction, référentiel, admin) |
-| `archiviste` | Saisie, inventaire, recherche, destruction, référentiel |
+| `super_admin` | Tout, y compris la gestion des autres administrateurs |
+| `admin` | Tableau de bord, saisie, cartons, inventaire, recherche, à compléter, destruction (dont validation des demandes), référentiel, administration |
+| `archiviste` | Saisie, cartons, inventaire, recherche, à compléter, proposition de destruction, référentiel |
 | `consultation` | Inventaire, recherche, référentiel (lecture seule) |
 
 ## Pages
 
-- **Dashboard** — KPIs, répartitions, alertes prioritaires
-- **Saisie** — Création de cartons + documents (formulaire 2 étapes)
-- **Inventaire** — Tableau complet avec filtres, tri, export CSV
-- **Recherche** — Localisation physique d'un document
-- **À détruire** — Alertes CNIL avec workflow de destruction
+- **Tableau de bord** — KPIs, répartitions, alertes prioritaires
+- **Saisie** — Création de cartons + documents (formulaire 2 étapes, par blocs service/catégorie). Le préfixe du numéro de carton vient de la salle.
+- **Inventaire** — Tableau complet avec filtres, tri, export CSV, et **emprunt / retour** de documents
+- **Cartons** — Liste des cartons avec nombre de documents actifs, mise en évidence des cartons **vides / presque vides**, ajout de documents et modification d'emplacement
+- **Recherche** — Localisation physique d'un document (recherche tolérante aux fautes)
+- **À compléter** — Documents dont la date limite n'est pas encore calculable ; complétion des précisions, **y compris l'attribution d'une catégorie CNIL** pour les documents importés sans catégorie
+- **À détruire** — Alertes CNIL, filtres, et **circuit de destruction** (proposition par l'archiviste → validation par l'admin) ou destruction directe
 - **Référentiel CNIL** — Tableau des durées légales de conservation
-- **Admin** — Gestion salles, étagères, utilisateurs
+- **Administration** — Salles & étagères (avec **préfixe de numérotation** configurable), utilisateurs, **réinitialisations de mot de passe**, corbeille, journal d'audit
+
+## Services métier
+
+Chaque document est rattaché à un **service** : RH, Comptabilité, Médical, Juridique, Sécurité,
+Administratif, Social, CRT, SAD mixte, Autre. Le service filtre les catégories CNIL proposées.
+
+## Personnalisation client (branding)
+
+Le **nom affiché** et le **logo** sont pilotés par le dossier `branding/` (monté en lecture seule
+dans le conteneur frontend), sans rebuild ni redéploiement du code : il suffit d'y déposer
+`client-logo.png` et, en option, `branding.json` (`{ "client_name": "…" }`).
+Voir `branding/README.md`. Absents → nom générique « Archives » et icône par défaut, sans erreur.
 
 ## Accès distant et chiffrement
 
@@ -117,7 +136,7 @@ Cette mise en place constitue une prestation d'installation séparée.
 ```bash
 # Terminal 1 — Backend
 cd backend && npm install
-DATABASE_URL=postgresql://archives:archives_secret@localhost:5432/archives JWT_SECRET=dev-secret node --watch src/server.js
+DATABASE_URL=postgresql://archives:archives_secret@localhost:5432/archives JWT_SECRET=dev-secret-local-only-min-32-caracteres COOKIE_SECURE=false node --watch src/server.js
 
 # Terminal 2 — Frontend
 cd frontend && npm install && npm run dev
